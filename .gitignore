@@ -1,0 +1,6 @@
+.ninja_deps
+.ninja_log
+*.ninja
+Binaries/*
+Vendor/Sources/*
+
