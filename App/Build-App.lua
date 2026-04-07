@@ -17,7 +17,9 @@ project "App"
 
    links
    {
-      "Core"
+      "Core",
+      "vulkan",
+      "glfw3"
    }
 
    targetdir ("../Binaries/" .. OutputDir .. "/%{prj.name}")

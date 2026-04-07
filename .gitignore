@@ -3,4 +3,5 @@
 *.ninja
 Binaries/*
 Vendor/Sources/*
-
+.idea
+.vscode

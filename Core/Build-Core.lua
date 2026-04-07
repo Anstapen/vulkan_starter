@@ -34,15 +34,20 @@ project "Core"
        defines { "DEBUG" }
        runtime "Debug"
        symbols "On"
+       warnings "Extra"
 
    filter "configurations:Release"
        defines { "RELEASE" }
        runtime "Release"
        optimize "On"
        symbols "On"
+       fatalwarnings {"All"}
+       warnings "Extra"
 
    filter "configurations:Dist"
        defines { "DIST" }
        runtime "Release"
        optimize "On"
        symbols "Off"
+       fatalwarnings {"All"}
+       warnings "Extra"
