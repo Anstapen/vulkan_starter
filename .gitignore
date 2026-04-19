@@ -5,3 +5,9 @@ Binaries/*
 Vendor/Sources/*
 .idea
 .vscode
+.vs
+*.sln
+
+*.vcxproj
+
+*.user
