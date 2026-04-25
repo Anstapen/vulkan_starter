@@ -18,6 +18,7 @@ namespace Mupfel {
 		void InitWindow();
 		void InitVulkan();
 		void createInstance();
+		void checkInstanceExtensions();
 		void pickPhysicalDevice();
 		bool isDeviceSuitable(vk::raii::PhysicalDevice const& physicalDevice);
 		void createLogicalDevice();
@@ -28,6 +29,10 @@ namespace Mupfel {
 		uint32_t chooseSwapMinImageCount(vk::SurfaceCapabilitiesKHR const& surfaceCapabilities);
 		void createSwapChain();
 		void createImageViews();
+		bool checkIfExtensionIsSupported(const char * const extension);
+		bool checkIfRequiredLayersAreSupported(const std::vector<vk::LayerProperties> &layers);
+		void createGrahpicsPipeline();
+		vk::raii::ShaderModule createShaderModule(const std::vector<char>& code) const;
 
 	private:
 		GLFWwindow *window = nullptr;
@@ -44,6 +49,8 @@ namespace Mupfel {
 		vk::SurfaceFormatKHR   swapChainSurfaceFormat;
 		vk::Extent2D           swapChainExtent;
 		std::vector<vk::raii::ImageView> swapChainImageViews;
+		vk::raii::PipelineLayout pipelineLayout = nullptr;
+		vk::raii::Pipeline graphicsPipeline = nullptr;
 
 		const std::vector<char const*> validationLayers = {
 			"VK_LAYER_KHRONOS_validation"

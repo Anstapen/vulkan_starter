@@ -11,3 +11,5 @@ Vendor/Sources/*
 *.vcxproj
 
 *.user
+
+*.spv
