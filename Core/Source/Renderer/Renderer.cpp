@@ -43,7 +43,11 @@ void Renderer::Render()
 	while(!glfwWindowShouldClose(window))
 	{
 		glfwPollEvents();
+		drawFrame();
 	}
+
+
+	device.waitIdle();
 }
 
 void Renderer::DeInit()
@@ -77,7 +81,11 @@ void Mupfel::Renderer::InitVulkan()
 	pickPhysicalDevice();
 	createLogicalDevice();
 	createSwapChain();
+	createImageViews();
 	createGrahpicsPipeline();
+	createCommandPool();
+	createCommandBuffer();
+	createSyncObjects();
 }
 
 void Mupfel::Renderer::createInstance()
@@ -233,7 +241,7 @@ bool Renderer::isDeviceSuitable(vk::raii::PhysicalDevice const& physicalDevice)
 	auto features =
 		physicalDevice
 		.template getFeatures2<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan13Features, vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>();
-	bool supportsRequiredFeatures = features.template get<vk::PhysicalDeviceVulkan13Features>().dynamicRendering &&
+	bool supportsRequiredFeatures = features.template get<vk::PhysicalDeviceVulkan13Features>().dynamicRendering && features.template get<vk::PhysicalDeviceVulkan13Features>().synchronization2 &&
 		features.template get<vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>().extendedDynamicState;
 
 	// Return true if the physicalDevice meets all the criteria
@@ -257,26 +265,27 @@ void Mupfel::Renderer::createLogicalDevice() {
 	std::vector<vk::QueueFamilyProperties> queueFamilyProperties = physicalDevice.getQueueFamilyProperties();
 
 	// get the first index into queueFamilyProperties which supports both graphics and present
-	uint32_t queueIndex = ~0;
+	uint32_t qIndex = ~0;
 	for (uint32_t qfpIndex = 0; qfpIndex < queueFamilyProperties.size(); qfpIndex++)
 	{
 		if ((queueFamilyProperties[qfpIndex].queueFlags & vk::QueueFlagBits::eGraphics) &&
 			physicalDevice.getSurfaceSupportKHR(qfpIndex, *surface))
 		{
 			// found a queue family that supports both graphics and present
-			queueIndex = qfpIndex;
+			qIndex = qfpIndex;
 			break;
 		}
 	}
-	if (queueIndex == ~0)
+	if (qIndex == ~0)
 	{
 		throw std::runtime_error("Could not find a queue for graphics and present -> terminating");
 	}
+	queueIndex = qIndex;
 
 	// query for Vulkan 1.3 features
 	vk::StructureChain<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan13Features, vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT> featureChain = {
 		{},                                   // vk::PhysicalDeviceFeatures2
-		{.dynamicRendering = true},           // vk::PhysicalDeviceVulkan13Features
+		{.synchronization2 = true, .dynamicRendering = true},           // vk::PhysicalDeviceVulkan13Features
 		{.extendedDynamicState = true}        // vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT
 	};
 
@@ -514,4 +523,158 @@ vk::raii::ShaderModule Mupfel::Renderer::createShaderModule(const std::vector<ch
 	vk::raii::ShaderModule module(device, info);
 
 	return module;
+}
+
+void Mupfel::Renderer::createCommandPool()
+{
+	vk::CommandPoolCreateInfo poolInfo;
+	poolInfo.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
+	poolInfo.queueFamilyIndex = queueIndex;
+
+	commandPool = vk::raii::CommandPool(device, poolInfo);
+}
+
+void Mupfel::Renderer::createCommandBuffer()
+{
+	vk::CommandBufferAllocateInfo allocInfo{ .commandPool = commandPool, .level = vk::CommandBufferLevel::ePrimary, .commandBufferCount = 1 };
+	commandBuffer = std::move(vk::raii::CommandBuffers(device, allocInfo).front());
+}
+
+void Mupfel::Renderer::recordCommandBuffer(uint32_t imageIndex)
+{
+	commandBuffer.begin({});
+
+	// Transition the image layout for rendering
+	transitionImageLayout(
+		imageIndex,
+		vk::ImageLayout::eUndefined,
+		vk::ImageLayout::eColorAttachmentOptimal,
+		{},
+		vk::AccessFlagBits2::eColorAttachmentWrite,
+		vk::PipelineStageFlagBits2::eColorAttachmentOutput,
+		vk::PipelineStageFlagBits2::eColorAttachmentOutput
+	);
+
+	// Set up the color attachment
+	vk::ClearValue clearColor = vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f);
+	vk::RenderingAttachmentInfo attachmentInfo = {
+			.imageView = swapChainImageViews[imageIndex],
+			.imageLayout = vk::ImageLayout::eColorAttachmentOptimal,
+			.loadOp = vk::AttachmentLoadOp::eClear,
+			.storeOp = vk::AttachmentStoreOp::eStore,
+			.clearValue = clearColor };
+
+	// Set up the rendering info
+	vk::RenderingInfo renderingInfo = {
+			.renderArea = {.offset = {0, 0}, .extent = swapChainExtent},
+			.layerCount = 1,
+			.colorAttachmentCount = 1,
+			.pColorAttachments = &attachmentInfo };
+
+	// Begin rendering
+	commandBuffer.beginRendering(renderingInfo);
+
+	commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *graphicsPipeline);
+
+	commandBuffer.setViewport(0, vk::Viewport(0.0f, 0.0f, static_cast<float>(swapChainExtent.width), static_cast<float>(swapChainExtent.height), 0.0f, 1.0f));
+	commandBuffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), swapChainExtent));
+
+	commandBuffer.draw(3, 1, 0, 0);
+
+	// Rendering commands will go here
+
+	// End rendering
+	commandBuffer.endRendering();
+
+	// Transition the image layout for presentation
+	transitionImageLayout(
+		imageIndex,
+		vk::ImageLayout::eColorAttachmentOptimal,
+		vk::ImageLayout::ePresentSrcKHR,
+		vk::AccessFlagBits2::eColorAttachmentWrite,
+		{},
+		vk::PipelineStageFlagBits2::eColorAttachmentOutput,
+		vk::PipelineStageFlagBits2::eBottomOfPipe
+	);
+
+	commandBuffer.end();
+}
+
+void Mupfel::Renderer::drawFrame()
+{
+	auto res = device.waitForFences(*drawFence, vk::True, UINT64_MAX);
+	if (res != vk::Result::eSuccess)
+	{
+		throw std::runtime_error("Failed to wait for draw fence!");
+	}
+	device.resetFences(*drawFence);
+
+	vk::ResultValue<uint32_t> image_index = swapChain.acquireNextImage(UINT64_MAX, *presentCompleteSemaphore, nullptr);
+	
+	recordCommandBuffer(image_index.value);
+
+	vk::PipelineStageFlags waitDestinationStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
+
+	const vk::SubmitInfo submitInfo{
+		.waitSemaphoreCount = 1,
+		.pWaitSemaphores = &*presentCompleteSemaphore,
+		.pWaitDstStageMask = &waitDestinationStageMask,
+		.commandBufferCount = 1,
+		.pCommandBuffers = &*commandBuffer,
+		.signalSemaphoreCount = 1,
+		.pSignalSemaphores = &*renderFinishedSemaphores[image_index.value]};
+	queue.submit(submitInfo, *drawFence);
+
+	const vk::PresentInfoKHR presentInfoKHR{
+		.waitSemaphoreCount = 1,
+		.pWaitSemaphores = &*renderFinishedSemaphores[image_index.value],
+		.swapchainCount = 1,
+		.pSwapchains = &*swapChain,
+		.pImageIndices = &image_index.value};
+
+	vk::Result present_res = queue.presentKHR(presentInfoKHR);
+
+}
+
+void Mupfel::Renderer::createSyncObjects()
+{
+	presentCompleteSemaphore = vk::raii::Semaphore(device, vk::SemaphoreCreateInfo());
+	/* Create a semaphore for each swapchain image */
+	for (uint32_t i = 0; i < swapChainImages.size(); i++)
+	{
+		renderFinishedSemaphores.push_back(vk::raii::Semaphore(device, vk::SemaphoreCreateInfo()));
+	}
+	drawFence = vk::raii::Fence(device, {.flags = vk::FenceCreateFlagBits::eSignaled});
+}
+
+void Mupfel::Renderer::transitionImageLayout(
+	uint32_t                imageIndex,
+	vk::ImageLayout         old_layout,
+	vk::ImageLayout         new_layout,
+	vk::AccessFlags2        src_access_mask,
+	vk::AccessFlags2        dst_access_mask,
+	vk::PipelineStageFlags2 src_stage_mask,
+	vk::PipelineStageFlags2 dst_stage_mask)
+{
+	vk::ImageMemoryBarrier2 barrier = {
+		.srcStageMask = src_stage_mask,
+		.srcAccessMask = src_access_mask,
+		.dstStageMask = dst_stage_mask,
+		.dstAccessMask = dst_access_mask,
+		.oldLayout = old_layout,
+		.newLayout = new_layout,
+		.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+		.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+		.image = swapChainImages[imageIndex],
+		.subresourceRange = {
+			   .aspectMask = vk::ImageAspectFlagBits::eColor,
+			   .baseMipLevel = 0,
+			   .levelCount = 1,
+			   .baseArrayLayer = 0,
+			   .layerCount = 1} };
+	vk::DependencyInfo dependencyInfo = {
+		.dependencyFlags = {},
+		.imageMemoryBarrierCount = 1,
+		.pImageMemoryBarriers = &barrier };
+	commandBuffer.pipelineBarrier2(dependencyInfo);
 }

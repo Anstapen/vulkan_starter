@@ -33,6 +33,19 @@ namespace Mupfel {
 		bool checkIfRequiredLayersAreSupported(const std::vector<vk::LayerProperties> &layers);
 		void createGrahpicsPipeline();
 		vk::raii::ShaderModule createShaderModule(const std::vector<char>& code) const;
+		void createCommandPool();
+		void createCommandBuffer();
+		void transitionImageLayout(
+			uint32_t                imageIndex,
+			vk::ImageLayout         old_layout,
+			vk::ImageLayout         new_layout,
+			vk::AccessFlags2        src_access_mask,
+			vk::AccessFlags2        dst_access_mask,
+			vk::PipelineStageFlags2 src_stage_mask,
+			vk::PipelineStageFlags2 dst_stage_mask);
+		void recordCommandBuffer(uint32_t imageIndex);
+		void drawFrame();
+		void createSyncObjects();
 
 	private:
 		GLFWwindow *window = nullptr;
@@ -44,6 +57,8 @@ namespace Mupfel {
 		vk::raii::Queue queue = nullptr;
 		vk::raii::SurfaceKHR surface = nullptr;
 
+		uint32_t queueIndex;
+
 		vk::raii::SwapchainKHR swapChain = nullptr;
 		std::vector<vk::Image> swapChainImages;
 		vk::SurfaceFormatKHR   swapChainSurfaceFormat;
@@ -51,6 +66,12 @@ namespace Mupfel {
 		std::vector<vk::raii::ImageView> swapChainImageViews;
 		vk::raii::PipelineLayout pipelineLayout = nullptr;
 		vk::raii::Pipeline graphicsPipeline = nullptr;
+		vk::raii::CommandPool commandPool = nullptr;
+		vk::raii::CommandBuffer commandBuffer = nullptr;
+
+		vk::raii::Semaphore presentCompleteSemaphore = nullptr;
+		std::vector<vk::raii::Semaphore> renderFinishedSemaphores;
+		vk::raii::Fence drawFence = nullptr;
 
 		const std::vector<char const*> validationLayers = {
 			"VK_LAYER_KHRONOS_validation"
