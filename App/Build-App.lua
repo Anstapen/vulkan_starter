@@ -12,14 +12,21 @@ project "App"
       "Source",
 
 	  -- Include Core
-	  "../Core/Source"
+	  "../Core/Source",
+       "../Vendor/Sources/glfw-3.4.bin.WIN64/include",
+       vulkan_sdk_path .. "/Include",
+       "../" .. spdlog_dir .. "/include"
    }
+   
+   libdirs {vulkan_sdk_path .. "/Lib"}
+   libdirs {"../" .. glfw_dir .. "/lib-vc2022"}
 
    links
    {
       "Core",
       "vulkan",
-      "glfw3"
+      "glfw3",
+      "spdlog"
    }
 
    targetdir ("../Binaries/" .. OutputDir .. "/%{prj.name}")

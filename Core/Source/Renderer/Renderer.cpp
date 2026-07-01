@@ -10,17 +10,12 @@
 
 using namespace Mupfel;
 
-constexpr uint32_t WIDTH = 800;
-constexpr uint32_t HEIGHT = 600;
-
 static std::vector<char> readFile(const std::string& filename) {
 	std::ifstream file(filename, std::ios::ate | std::ios::binary);
 
 	if (!file.is_open()) {
 		throw std::runtime_error("failed to open file!");
 	}
-
-	
 
 	std::vector<char> buffer(file.tellg());
 	file.seekg(0, std::ios::beg);
@@ -29,56 +24,27 @@ static std::vector<char> readFile(const std::string& filename) {
 	return buffer;
 }
 
-void Renderer::Init()
+void Renderer::Init(VkInstance in_instance)
 {
-	std::cout << "Renderer::Init" << std::endl;
-	InitWindow();
+	logger = Logger::Create("Renderer");
+	logger->info("Init");
+	instance = in_instance;
 	InitVulkan();
 }
 
 void Renderer::Render()
 {
-	assert(window != nullptr);
-
-	while(!glfwWindowShouldClose(window))
-	{
-		glfwPollEvents();
-		drawFrame();
-	}
-
-
-	device.waitIdle();
+	drawFrame();
 }
 
 void Renderer::DeInit()
 {
-	if(window != nullptr)
-	{
-		return;
-	}
-
-	glfwDestroyWindow(window);
-
-	glfwTerminate();
 }
 
-void Mupfel::Renderer::InitWindow()
+void Renderer::InitVulkan()
 {
-	glfwInit();
-	/* Do not create an OpenGL context */
-	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-	/* Make it non-resizable for now */
-	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-	/* Create the window */
-	window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
-}
-
-void Mupfel::Renderer::InitVulkan()
-{
-	checkInstanceExtensions();
-	createInstance();
+#if 0
 	createSurface();
-	pickPhysicalDevice();
 	createLogicalDevice();
 	createSwapChain();
 	createImageViews();
@@ -86,142 +52,80 @@ void Mupfel::Renderer::InitVulkan()
 	createCommandPool();
 	createCommandBuffer();
 	createSyncObjects();
-}
-
-void Mupfel::Renderer::createInstance()
-{
-	constexpr vk::ApplicationInfo appInfo{
-		.pApplicationName = "My first App",
-		.applicationVersion = VK_MAKE_VERSION(0, 1, 0),
-		.pEngineName = "No Engine",
-		.engineVersion = VK_MAKE_VERSION(1, 0, 0),
-		.apiVersion = vk::ApiVersion14 };
-
-	vk::InstanceCreateInfo createInfo{
-		.pApplicationInfo = &appInfo
-	};
-
-	uint32_t glfwExtensionCount = 0;
-	const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
-
-	/* Check if required GLFW extensions are supported by the vulkan implementation */
-	for (uint32_t i = 0; i < glfwExtensionCount; ++i)
-	{
-		if (!checkIfExtensionIsSupported(glfwExtensions[i]))
-		{
-			throw std::runtime_error("Required GLFW extension not supported: " + std::string(glfwExtensions[i]));
-		}
-	}
-
-	createInfo.enabledExtensionCount = glfwExtensionCount;
-	createInfo.ppEnabledExtensionNames = glfwExtensions;
-
-	std::vector<vk::LayerProperties> layerProperties = context.enumerateInstanceLayerProperties();
-	checkIfRequiredLayersAreSupported(layerProperties);
-	
-	if (enableValidationLayers)
-	{
-		createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
-		createInfo.ppEnabledLayerNames = validationLayers.data();
-	}
-	else {
-		createInfo.enabledLayerCount = 0;
-		createInfo.ppEnabledLayerNames = nullptr;
-	}
-	
-	instance = vk::raii::Instance(context, createInfo);
-}
-
-void Mupfel::Renderer::checkInstanceExtensions()
-{
-	uint32_t glfwExtensionCount = 0;
-	const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
-
-	if (glfwExtensionCount == 0 || glfwExtensions == NULL)
-	{
-		std::cout << "Error: could not retrieve the required GLFW extensions!" << std::endl;
-		return;
-	}
-
-	std::cout << "The following Vulkan extensions are needed by GLFW:" << std::endl;
-	for (uint32_t i = 0; i < glfwExtensionCount; i++)
-	{
-		std::cout << glfwExtensions[i] << std::endl;
-	}
+#endif
 }
 
 std::vector<const char*> requiredDeviceExtension = { vk::KHRSwapchainExtensionName, "VK_KHR_shader_draw_parameters" };
 
-static void printQueueFlags(const vk::QueueFamilyProperties& prop)
+void Renderer::printQueueFlags(const vk::QueueFamilyProperties& prop)
 {
 	vk::QueueFlags flags = prop.queueFlags;
 
 	if (flags & vk::QueueFlagBits::eGraphics)
 	{
-		std::cout << "eGraphics" << std::endl;
+		logger->info("eGraphics");
 	}
 
 	if (flags & vk::QueueFlagBits::eCompute)
 	{
-		std::cout << "eCompute" << std::endl;
+		logger->info("eCompute");
 	}
 
 	if (flags & vk::QueueFlagBits::eDataGraphARM)
 	{
-		std::cout << "eDataGraphARM" << std::endl;
+		logger->info("eDataGraphARM");
 	}
 
 	if (flags & vk::QueueFlagBits::eOpticalFlowNV)
 	{
-		std::cout << "eOpticalFlowNV" << std::endl;
+		logger->info("eOpticalFlowNV");
 	}
 
 	if (flags & vk::QueueFlagBits::eProtected)
 	{
-		std::cout << "eProtected" << std::endl;
+		logger->info("eProtected");
 	}
 
 	if (flags & vk::QueueFlagBits::eSparseBinding)
 	{
-		std::cout << "eSparseBinding" << std::endl;
+		logger->info("eSparseBinding");
 	}
 
 	if (flags & vk::QueueFlagBits::eTransfer)
 	{
-		std::cout << "eTransfer" << std::endl;
+		logger->info("eTransfer");
 	}
 
 	if (flags & vk::QueueFlagBits::eVideoDecodeKHR)
 	{
-		std::cout << "eVideoDecodeKHR" << std::endl;
+		logger->info("eVideoDecodeKHR");
 	}
 
 	if (flags & vk::QueueFlagBits::eVideoEncodeKHR)
 	{
-		std::cout << "eVideoEncodeKHR" << std::endl;
+		logger->info("eVideoEncodeKHR");
 	}
 }
 
-bool Renderer::isDeviceSuitable(vk::raii::PhysicalDevice const& physicalDevice)
+bool Renderer::isDeviceSuitable(vk::raii::PhysicalDevice const& in_physicalDevice)
 {
-	vk::PhysicalDeviceProperties prop = physicalDevice.getProperties();
-	std::cout << prop.deviceName.data() << ":" << std::endl;
-	std::cout << "API version: " << vk::versionMajor(prop.apiVersion) << "." << vk::versionMinor(prop.apiVersion) << std::endl;
-	std::cout << "Device Type: " << static_cast<uint32_t>(prop.deviceType) << std::endl;
+	vk::PhysicalDeviceProperties prop = in_physicalDevice.getProperties();
+	logger->info("Device: {}", prop.deviceName.data());
+	logger->info("API version: {}.{}", vk::versionMajor(prop.apiVersion), vk::versionMinor(prop.apiVersion));
+	logger->info("Device Type: {}", static_cast<uint32_t>(prop.deviceType));
 
 	// Check if the physicalDevice supports the Vulkan 1.3 API version
 	bool supportsVulkan1_3 = prop.apiVersion >= vk::ApiVersion13;
 
 	// Check if any of the queue families support graphics operations
-	auto queueFamilies = physicalDevice.getQueueFamilyProperties();
+	auto queueFamilies = in_physicalDevice.getQueueFamilyProperties();
 
 	for (uint32_t i = 0; i < queueFamilies.size(); i++)
 	{
-		std::cout << "Queue " << i << ":" << std::endl;
-		std::cout << "count: " << queueFamilies[i].queueCount << std::endl;
-		std::cout << "Flags:" << std::endl;
+		logger->info("Queue {}:", i);
+		logger->info("count: {}", queueFamilies[i].queueCount);
+		logger->info("Flags:");
 		printQueueFlags(queueFamilies[i]);
-		std::cout << std::endl;
 	}
 
 	bool supportsGraphics = std::ranges::any_of(queueFamilies, [](auto const& qfp) { return !!(qfp.queueFlags & vk::QueueFlagBits::eGraphics); });
@@ -248,24 +152,12 @@ bool Renderer::isDeviceSuitable(vk::raii::PhysicalDevice const& physicalDevice)
 	return supportsVulkan1_3 && supportsGraphics && supportsAllRequiredExtensions && supportsRequiredFeatures;
 }
 
-void Renderer::pickPhysicalDevice()
-{
-	std::vector<vk::raii::PhysicalDevice> physicalDevices = instance.enumeratePhysicalDevices();
-
-	auto const devIter = std::ranges::find_if(physicalDevices, [&](auto const& physicalDevice) { return isDeviceSuitable(physicalDevice); });
-	if (devIter == physicalDevices.end())
-	{
-		throw std::runtime_error("failed to find a suitable GPU!");
-	}
-	physicalDevice = *devIter;
-}
-
 void Mupfel::Renderer::createLogicalDevice() {
 	// find the index of the first queue family that supports graphics
 	std::vector<vk::QueueFamilyProperties> queueFamilyProperties = physicalDevice.getQueueFamilyProperties();
 
 	// get the first index into queueFamilyProperties which supports both graphics and present
-	uint32_t qIndex = ~0;
+	uint32_t qIndex = ~0U;
 	for (uint32_t qfpIndex = 0; qfpIndex < queueFamilyProperties.size(); qfpIndex++)
 	{
 		if ((queueFamilyProperties[qfpIndex].queueFlags & vk::QueueFlagBits::eGraphics) &&
@@ -303,11 +195,13 @@ void Mupfel::Renderer::createLogicalDevice() {
 }
 
 void Renderer::createSurface() {
+#if 0
 	VkSurfaceKHR       _surface;
 	if (glfwCreateWindowSurface(*instance, window, nullptr, &_surface) != 0) {
 		throw std::runtime_error("failed to create window surface!");
 	}
 	surface = vk::raii::SurfaceKHR(instance, _surface);
+#endif
 }
 
 vk::SurfaceFormatKHR Mupfel::Renderer::chooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats) {
@@ -332,8 +226,8 @@ vk::Extent2D Mupfel::Renderer::chooseSwapExtent(vk::SurfaceCapabilitiesKHR const
 	{
 		return capabilities.currentExtent;
 	}
-	int width, height;
-	glfwGetFramebufferSize(window, &width, &height);
+	int width = 0, height = 0;
+	//glfwGetFramebufferSize(window, &width, &height);
 
 	return {
 		std::clamp<uint32_t>(width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width),
@@ -406,7 +300,7 @@ bool Mupfel::Renderer::checkIfRequiredLayersAreSupported(const std::vector<vk::L
 	}
 
 	// Check if the required layers are supported by the Vulkan implementation.
-	
+
 	auto unsupportedLayerIt = std::ranges::find_if(requiredLayers,
 		[&layers](auto const& requiredLayer) {
 			return std::ranges::none_of(layers,
@@ -433,7 +327,7 @@ void Mupfel::Renderer::createGrahpicsPipeline()
 {
 	std::vector<char> shader_code = readFile("./Shaders/slang.spv");
 
-	std::cout << "Loaded " << shader_code.size() << " bytes from file." << std::endl;
+	logger->info("Loaded {} bytes from file.", shader_code.size());
 
 	vk::raii::ShaderModule shader_module = createShaderModule(shader_code);
 
@@ -457,7 +351,7 @@ void Mupfel::Renderer::createGrahpicsPipeline()
 	input_assembly.topology = vk::PrimitiveTopology::eTriangleList;
 
 	/* Dynamic viewport and scissor states */
-	vk::Viewport viewport{ 0.0f, 0.0f, static_cast<float>(swapChainExtent.width), static_cast<float>(swapChainExtent.height) , 0.0f, 1.0f};
+	vk::Viewport viewport{ 0.0f, 0.0f, static_cast<float>(swapChainExtent.width), static_cast<float>(swapChainExtent.height) , 0.0f, 1.0f };
 
 	vk::Rect2D scissor{ vk::Offset2D{0,0}, swapChainExtent };
 
@@ -610,7 +504,7 @@ void Mupfel::Renderer::drawFrame()
 	device.resetFences(*drawFence);
 
 	vk::ResultValue<uint32_t> image_index = swapChain.acquireNextImage(UINT64_MAX, *presentCompleteSemaphore, nullptr);
-	
+
 	recordCommandBuffer(image_index.value);
 
 	vk::PipelineStageFlags waitDestinationStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
@@ -622,7 +516,7 @@ void Mupfel::Renderer::drawFrame()
 		.commandBufferCount = 1,
 		.pCommandBuffers = &*commandBuffer,
 		.signalSemaphoreCount = 1,
-		.pSignalSemaphores = &*renderFinishedSemaphores[image_index.value]};
+		.pSignalSemaphores = &*renderFinishedSemaphores[image_index.value] };
 	queue.submit(submitInfo, *drawFence);
 
 	const vk::PresentInfoKHR presentInfoKHR{
@@ -630,9 +524,10 @@ void Mupfel::Renderer::drawFrame()
 		.pWaitSemaphores = &*renderFinishedSemaphores[image_index.value],
 		.swapchainCount = 1,
 		.pSwapchains = &*swapChain,
-		.pImageIndices = &image_index.value};
+		.pImageIndices = &image_index.value };
 
 	vk::Result present_res = queue.presentKHR(presentInfoKHR);
+	(void)present_res;
 
 }
 
@@ -644,7 +539,7 @@ void Mupfel::Renderer::createSyncObjects()
 	{
 		renderFinishedSemaphores.push_back(vk::raii::Semaphore(device, vk::SemaphoreCreateInfo()));
 	}
-	drawFence = vk::raii::Fence(device, {.flags = vk::FenceCreateFlagBits::eSignaled});
+	drawFence = vk::raii::Fence(device, { .flags = vk::FenceCreateFlagBits::eSignaled });
 }
 
 void Mupfel::Renderer::transitionImageLayout(

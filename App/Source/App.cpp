@@ -1,22 +1,24 @@
-#include "Renderer/Renderer.h"
 #include <stdexcept>
-#include <iostream>
 #include <cstdlib>
+#include "Logger/Logger.h"
+#include "Application/Application.h"
 
 using namespace Mupfel;
 
 int main()
 {
+	Logger::Init();
+
+	auto main_logger = Logger::Create("main");
+	main_logger->info("Starting application...");
 	try
 	{
-		Renderer renderer;
-		renderer.Init();
-		renderer.Render();
-		renderer.DeInit();
+		Application app("Vulkan Playground");
+		app.Run();
 	}
 	catch (const std::exception &e)
 	{
-		std::cerr << e.what() << std::endl;
+		main_logger->error("Exception: {}", e.what());
 		return EXIT_FAILURE;
 	}
 

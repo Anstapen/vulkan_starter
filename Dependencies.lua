@@ -5,6 +5,10 @@ function download_progress(total, current)
     print("Download progress (" .. percent .. "%/100%)")
 end
 
+glm_dir = "Vendor/Sources/glm-master"
+glfw_dir = "Vendor/Sources/glfw-3.4.bin.WIN64"
+spdlog_dir = "Vendor/Sources/spdlog-1.17.0"
+
 
 function check_glm()
     print("Checking for GLM...")
@@ -29,25 +33,48 @@ function check_glm()
     os.chdir("../../")
 end
 
-function check_sdl()
-    print("Checking for SDL...")
+function check_spdlog()
+    print("Checking for spdlog...")
     print(os.getcwd())
     os.chdir("Vendor")
     if(os.isdir("Sources") == false) then
         os.mkdir("Sources")
     end
     os.chdir("Sources")
-    if(os.isdir("SDL-release-3.4.2") == false) then
-        if(not os.isfile("SDL-release-3.4.2.zip")) then
-            print("SDL not found, downloading from https://github.com/libsdl-org/SDL/archive/refs/tags/release-3.4.2.zip")
-            local result_str, response_code = http.download("https://github.com/libsdl-org/SDL/archive/refs/tags/release-3.4.2.zip", "SDL-release-3.4.2.zip", {
+    if(os.isdir("spdlog-1.17.0") == false) then
+        if(not os.isfile("spdlog.zip")) then
+            print("spdlog not found, downloading from https://github.com/gabime/spdlog/archive/refs/tags/v1.17.0.zip")
+            local result_str, response_code = http.download("https://github.com/gabime/spdlog/archive/refs/tags/v1.17.0.zip", "spdlog.zip", {
                 progress = download_progress,
                 headers = { "From: Premake", "Referer: Premake" }
             })
         end
         print("Unzipping to " ..  os.getcwd())
-        zip.extract("SDL-release-3.4.2.zip", os.getcwd())
-        os.remove("SDL-release-3.4.2.zip")
+        zip.extract("spdlog.zip", os.getcwd())
+        os.remove("spdlog.zip")
+    end
+    os.chdir("../../")
+end
+
+function check_glfw()
+    print("Checking for glfw...")
+    print(os.getcwd())
+    os.chdir("Vendor")
+    if(os.isdir("Sources") == false) then
+        os.mkdir("Sources")
+    end
+    os.chdir("Sources")
+    if(os.isdir("glfw-3.4.bin.WIN64") == false) then
+        if(not os.isfile("glfw.zip")) then
+            print("glfw not found, downloading from https://github.com/glfw/glfw/releases/download/3.4/glfw-3.4.bin.WIN64.zip")
+            local result_str, response_code = http.download("https://github.com/glfw/glfw/releases/download/3.4/glfw-3.4.bin.WIN64.zip", "glfw.zip", {
+                progress = download_progress,
+                headers = { "From: Premake", "Referer: Premake" }
+            })
+        end
+        print("Unzipping to " ..  os.getcwd())
+        zip.extract("glfw.zip", os.getcwd())
+        os.remove("glfw.zip")
     end
     os.chdir("../../")
 end
@@ -55,7 +82,9 @@ end
 function build_externals()
      print("Checking external dependencies...")
      check_glm()
-     check_sdl()
+     check_spdlog()
+     filter "system:windows"
+        check_glfw()
 end
 
 build_externals()

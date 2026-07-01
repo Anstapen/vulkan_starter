@@ -6,21 +6,19 @@
 #define VULKAN_HPP_NO_STRUCT_CONSTRUCTORS
 #include <vulkan/vulkan_raii.hpp>
 
+#include "Logger/Logger.h"
+
 namespace Mupfel {
 
 	class Renderer
 	{
 	public:
-		void Init();
+		void Init(VkInstance in_instance);
 		void Render();
 		void DeInit();
 	private:
-		void InitWindow();
 		void InitVulkan();
-		void createInstance();
-		void checkInstanceExtensions();
-		void pickPhysicalDevice();
-		bool isDeviceSuitable(vk::raii::PhysicalDevice const& physicalDevice);
+		bool isDeviceSuitable(vk::raii::PhysicalDevice const& in_physicalDevice);
 		void createLogicalDevice();
 		void createSurface();
 		vk::SurfaceFormatKHR chooseSwapSurfaceFormat(std::vector<vk::SurfaceFormatKHR> const& availableFormats);
@@ -46,18 +44,21 @@ namespace Mupfel {
 		void recordCommandBuffer(uint32_t imageIndex);
 		void drawFrame();
 		void createSyncObjects();
+		void printQueueFlags(const vk::QueueFamilyProperties& prop);
 
 	private:
-		GLFWwindow *window = nullptr;
+
+		Logger::SafeLoggerPtr logger;
+
+		VkInstance instance = nullptr;
 
 		vk::raii::Context context;
-		vk::raii::Instance instance = nullptr;
 		vk::raii::PhysicalDevice physicalDevice = nullptr;
 		vk::raii::Device device = nullptr;
 		vk::raii::Queue queue = nullptr;
 		vk::raii::SurfaceKHR surface = nullptr;
 
-		uint32_t queueIndex;
+		uint32_t queueIndex = 0;
 
 		vk::raii::SwapchainKHR swapChain = nullptr;
 		std::vector<vk::Image> swapChainImages;

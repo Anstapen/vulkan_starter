@@ -1,27 +1,24 @@
-project "Core"
+project "spdlog"
    kind "StaticLib"
    language "C++"
    cppdialect "C++20"
    targetdir "Binaries/%{cfg.buildcfg}"
    staticruntime "off"
+   
+   spdlog_header = spdlog_dir .. "/include"
+   spdlog_sources = spdlog_dir .. "/src"
 
-   files { "Source/**.h", "Source/**.cpp" }
+   files { spdlog_header .. "/**.h", spdlog_sources .. "/**.cpp" }
 
-   targetdir ("../Binaries/" .. OutputDir .. "/%{prj.name}")
-   objdir ("../Binaries/Intermediates/" .. OutputDir .. "/%{prj.name}")
-   
-   libdirs {"../Binaries/Dependencies/%{cfg.buildcfg}"}
-   
-   libdirs {vulkan_sdk_path .. "/Lib"}
-   
    includedirs
    {
-   "Source",
-   "../" .. glm_dir .."/glm",
-   vulkan_sdk_path .. "/Include",
-   "../" .. glfw_dir .."/include",
-   "../" .. spdlog_dir .. "/include"
+      spdlog_header
    }
+
+   targetdir ("Binaries/" .. OutputDir .. "/%{prj.name}")
+   objdir ("Binaries/Intermediates/" .. OutputDir .. "/%{prj.name}")
+   
+   defines { "SPDLOG_COMPILED_LIB" }
 
    filter "action:vs*"
        defines{"_WINSOCK_DEPRECATED_NO_WARNINGS", "_CRT_SECURE_NO_WARNINGS"}

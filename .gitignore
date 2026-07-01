@@ -13,3 +13,7 @@ Vendor/Sources/*
 *.user
 
 *.spv
+
+App/logs/
+
+*.filters
