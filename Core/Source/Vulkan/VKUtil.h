@@ -2,9 +2,9 @@
 #include <vector>
 #include <optional>
 #include "Logger/Logger.h"
-#include "vulkan/vulkan.h"
+#include "vulkan/vulkan_raii.hpp"
 
-namespace Mupfel
+namespace Backend
 {
 
     class VKExtensions
@@ -20,9 +20,6 @@ namespace Mupfel
         void Add(const char* extension_name);
         const char* const* Data() const;
         size_t Size() const;
-        void Print(Logger::SafeLoggerPtr logger) const;
-
-        static void PrintAvailableExtensions(Logger::SafeLoggerPtr logger);
 
         static bool IsExtensionSupported(const char* extension_name);
 
@@ -46,7 +43,6 @@ namespace Mupfel
         void Add(const char* validation_layer_name);
         const char* const* Data() const;
         size_t Size() const;
-        void Print(Logger::SafeLoggerPtr logger) const;
 
         static bool IsValidationLayerSupported(const char* validation_layer_name);
 
@@ -58,10 +54,10 @@ namespace Mupfel
     };
 
     struct VKQueueFamilyProperties {
-        VkQueueFlags wanted_flags;
+        vk::QueueFlags wanted_flags;
         uint32_t wanted_queue_instances;
 
-        std::optional<uint32_t> GetQueueIndexFromPhysicalDevice(VkPhysicalDevice device) const;
+        std::optional<uint32_t> GetQueueIndexFromPhysicalDevice(const vk::raii::PhysicalDevice &device) const;
     };
 
 }

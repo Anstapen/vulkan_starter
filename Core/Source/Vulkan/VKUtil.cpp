@@ -4,9 +4,7 @@
 #include <cstdint>
 #include <vector>
 
-using namespace Mupfel;
-
-Mupfel::VKExtensions::~VKExtensions()
+Backend::VKExtensions::~VKExtensions()
 {
 	for (uint32_t i = 0; i < extension_strings.size(); i++)
 	{
@@ -16,7 +14,7 @@ Mupfel::VKExtensions::~VKExtensions()
 	extension_strings.clear();
 }
 
-void Mupfel::VKExtensions::Add(const char* extension_name)
+void Backend::VKExtensions::Add(const char* extension_name)
 {
 	if (strlen(extension_name) == 0)
 	{
@@ -36,36 +34,18 @@ void Mupfel::VKExtensions::Add(const char* extension_name)
 	extension_strings.push_back(new_string);
 }
 
-const char* const* Mupfel::VKExtensions::Data() const
+const char* const* Backend::VKExtensions::Data() const
 {
 	return extension_strings.data();
 }
 
-size_t Mupfel::VKExtensions::Size() const
+size_t Backend::VKExtensions::Size() const
 {
 	return extension_strings.size();
 }
 
-void Mupfel::VKExtensions::Print(Logger::SafeLoggerPtr logger) const
-{
-	for (auto& e : extension_strings)
-	{
-		logger->info(e);
-	}
-}
 
-void Mupfel::VKExtensions::PrintAvailableExtensions(Logger::SafeLoggerPtr logger)
-{
-	std::vector<VkExtensionProperties> properties = GetAvailableExtensions();
-
-	logger->info("Available extensions:");
-	for (auto& e : properties)
-	{
-		logger->info(e.extensionName);
-	}
-}
-
-bool Mupfel::VKExtensions::IsExtensionSupported(const char* extension_name)
+bool Backend::VKExtensions::IsExtensionSupported(const char* extension_name)
 {
 	std::vector<VkExtensionProperties> extensions = GetAvailableExtensions();
 
@@ -80,7 +60,7 @@ bool Mupfel::VKExtensions::IsExtensionSupported(const char* extension_name)
 	return false;
 }
 
-std::vector<VkExtensionProperties> Mupfel::VKExtensions::GetAvailableExtensions()
+std::vector<VkExtensionProperties> Backend::VKExtensions::GetAvailableExtensions()
 {
 	uint32_t extension_count = 0;
 	VkResult result = vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr);
@@ -107,7 +87,7 @@ std::vector<VkExtensionProperties> Mupfel::VKExtensions::GetAvailableExtensions(
 	return properties;
 }
 
-Mupfel::VKValidationLayers::~VKValidationLayers()
+Backend::VKValidationLayers::~VKValidationLayers()
 {
 	for (uint32_t i = 0; i < validation_layers.size(); i++)
 	{
@@ -117,7 +97,7 @@ Mupfel::VKValidationLayers::~VKValidationLayers()
 	validation_layers.clear();
 }
 
-void Mupfel::VKValidationLayers::Add(const char* validation_layer_name)
+void Backend::VKValidationLayers::Add(const char* validation_layer_name)
 {
 	if (strlen(validation_layer_name) == 0)
 	{
@@ -137,25 +117,18 @@ void Mupfel::VKValidationLayers::Add(const char* validation_layer_name)
 	validation_layers.push_back(new_string);
 }
 
-const char* const* Mupfel::VKValidationLayers::Data() const
+const char* const* Backend::VKValidationLayers::Data() const
 {
 	return validation_layers.data();
 }
 
-size_t Mupfel::VKValidationLayers::Size() const
+size_t Backend::VKValidationLayers::Size() const
 {
 	return validation_layers.size();
 }
 
-void Mupfel::VKValidationLayers::Print(Logger::SafeLoggerPtr logger) const
-{
-	for (auto& e : validation_layers)
-	{
-		logger->info(e);
-	}
-}
 
-bool Mupfel::VKValidationLayers::IsValidationLayerSupported(const char* validation_layer_name)
+bool Backend::VKValidationLayers::IsValidationLayerSupported(const char* validation_layer_name)
 {
 	std::vector<VkLayerProperties> validation_layers = GetAvailableValidationLayers();
 
@@ -170,7 +143,7 @@ bool Mupfel::VKValidationLayers::IsValidationLayerSupported(const char* validati
 	return false;
 }
 
-std::vector<VkLayerProperties> Mupfel::VKValidationLayers::GetAvailableValidationLayers()
+std::vector<VkLayerProperties> Backend::VKValidationLayers::GetAvailableValidationLayers()
 {
 	uint32_t layer_count = 0;
 	VkResult result = vkEnumerateInstanceLayerProperties(&layer_count, nullptr);
@@ -197,22 +170,10 @@ std::vector<VkLayerProperties> Mupfel::VKValidationLayers::GetAvailableValidatio
 }
 
 std::optional<uint32_t>
-VKQueueFamilyProperties::GetQueueIndexFromPhysicalDevice(
-	VkPhysicalDevice device) const
+Backend::VKQueueFamilyProperties::GetQueueIndexFromPhysicalDevice(
+	const vk::raii::PhysicalDevice& device) const
 {
-	uint32_t queue_family_count = 0;
-	vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count,
-		nullptr);
-
-	if (queue_family_count == 0) {
-		return false;
-	}
-
-	std::vector<VkQueueFamilyProperties> queue_family_properties(
-		queue_family_count);
-
-	vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count,
-		queue_family_properties.data());
+	auto queue_family_properties = device.getQueueFamilyProperties();
 
 	std::optional<uint32_t> index;
 	for (uint32_t i = 0; i < queue_family_properties.size(); i++) {
