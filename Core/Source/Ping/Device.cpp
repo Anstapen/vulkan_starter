@@ -2,6 +2,7 @@
 #include "Vulkan/VKManager.h"
 #include "Vulkan/VKUtil.h"
 #include "Vulkan/VulkanSwapChain.h"
+#include "Vulkan/VulkanPipeline.h"
 #include "Device.h"
 
 #include <algorithm>
@@ -51,4 +52,9 @@ SwapChain Ping::Device::CreateSwapChain(const Window& window)
 	auto vulkanSwapChain = Backend::VKManager::CreateSwapChain(*vulkanContextPtr.get(), window);
 
 	return SwapChain(std::move(vulkanSwapChain));
-};
+}
+Pipeline Ping::Device::CreatePipeline(const PipelineSpecification& specification, const SwapChain& swapchain)
+{
+	Backend::VulkanPipeline vulkanPipeline = Backend::VKManager::CreatePipeline(*vulkanContextPtr.get(), specification, *swapchain.vulkanSwapChainPtr.get());
+	return Pipeline(std::move(vulkanPipeline));
+}

@@ -7,6 +7,7 @@ namespace Backend {
 	{
 	public:
 		VulkanSwapChain(
+			const vk::raii::Device &device,
 			vk::raii::SwapchainKHR&& in_swapChain,
 			vk::SurfaceFormatKHR in_swapChainSurfaceFormat,
 			vk::Extent2D in_swapChainExtent);

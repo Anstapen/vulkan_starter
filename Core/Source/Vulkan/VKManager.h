@@ -9,6 +9,8 @@
 #include "Window/Window.h"
 #include "VulkanContext.h"
 #include "VulkanSwapChain.h"
+#include "VulkanPipeline.h"
+#include "Ping/Pipeline.h"
 
 namespace Backend {
 
@@ -22,7 +24,7 @@ namespace Backend {
 			const std::vector<const char*>& wanted_extensions,
 			const std::vector<const char*>& wanted_validation_layers);
 		static VulkanSwapChain CreateSwapChain(const VulkanContext &context, const Window &window);
-
+		static VulkanPipeline CreatePipeline(const VulkanContext& context, const Ping::PipelineSpecification& specification, const VulkanSwapChain& swapchain);
 	private:
 		static vk::raii::Instance
 			CreateInstance(const std::vector<const char*>& wanted_extensions,
@@ -42,6 +44,7 @@ namespace Backend {
 		static vk::PresentModeKHR SelectPresentMode(const std::vector<vk::PresentModeKHR>& availablePresentModes);
 		static vk::Extent2D SelectSwapExtent(const vk::SurfaceCapabilitiesKHR& capabilities, const Window& window);
 		static uint32_t chooseSwapMinImageCount(vk::SurfaceCapabilitiesKHR const& surfaceCapabilities);
+		static std::vector<char> readFile(const std::string& filename);
 	private:
 		static bool is_initialized;
 		static std::unique_ptr<vk::raii::Context> context;

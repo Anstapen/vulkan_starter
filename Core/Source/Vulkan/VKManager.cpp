@@ -1,5 +1,6 @@
 #include "VKManager.h"
 #include <cstdint>
+#include <fstream>
 
 using namespace Backend;
 
@@ -80,7 +81,74 @@ VulkanSwapChain VKManager::CreateSwapChain(
 
 	auto swap_chain = vk::raii::SwapchainKHR(context.device, swapChainCreateInfo);
 
-	return VulkanSwapChain(std::move(swap_chain), swapChainSurfaceFormat, swapChainExtent);
+	return VulkanSwapChain(context.device, std::move(swap_chain), swapChainSurfaceFormat, swapChainExtent);
+}
+
+VulkanPipeline Backend::VKManager::CreatePipeline(const VulkanContext& context, const Ping::PipelineSpecification& specification, const VulkanSwapChain& swapchain)
+{
+	logger->info("Creating pipeline with shader file: {}", specification.shaderFilePath);
+	std::vector<char> shaderCode = readFile(specification.shaderFilePath);
+	vk::ShaderModuleCreateInfo createInfo{ .codeSize = shaderCode.size() * sizeof(char), .pCode = reinterpret_cast<const uint32_t*>(shaderCode.data()) };
+	vk::raii::ShaderModule shaderModule{ context.device, createInfo };
+	vk::PipelineShaderStageCreateInfo vertShaderStageInfo{ .stage = vk::ShaderStageFlagBits::eVertex, .module = shaderModule,  .pName = "vertMain" };
+	vk::PipelineShaderStageCreateInfo fragShaderStageInfo{ .stage = vk::ShaderStageFlagBits::eFragment, .module = shaderModule, .pName = "fragMain" };
+	vk::PipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
+	std::vector<vk::DynamicState> dynamicStates = { vk::DynamicState::eViewport, vk::DynamicState::eScissor };
+	vk::PipelineDynamicStateCreateInfo dynamicState{ .dynamicStateCount = static_cast<uint32_t>(dynamicStates.size()), .pDynamicStates = dynamicStates.data() };
+	vk::PipelineVertexInputStateCreateInfo vertexInputInfo;
+	vk::PipelineInputAssemblyStateCreateInfo inputAssembly{ .topology = vk::PrimitiveTopology::eTriangleList };
+	vk::Viewport viewport{ 0.0f, 0.0f, static_cast<float>(swapchain.swapChainExtent.width), static_cast<float>(swapchain.swapChainExtent.height), 0.0f, 1.0f };
+	vk::PipelineViewportStateCreateInfo viewportState{ .viewportCount = 1, .scissorCount = 1 };
+	vk::Rect2D scissor{ vk::Offset2D{ 0, 0 }, swapchain.swapChainExtent };
+
+	/* Rasterizer */
+	vk::PipelineRasterizationStateCreateInfo rasterizer{ .depthClampEnable = vk::False,
+													.rasterizerDiscardEnable = vk::False,
+													.polygonMode = vk::PolygonMode::eFill,
+													.cullMode = vk::CullModeFlagBits::eBack,
+													.frontFace = vk::FrontFace::eClockwise,
+													.depthBiasEnable = vk::False,
+													.lineWidth = 1.0f };
+	/* Multisampling */
+	vk::PipelineMultisampleStateCreateInfo multisampling{ .rasterizationSamples = vk::SampleCountFlagBits::e1, .sampleShadingEnable = vk::False };
+
+	/* color blending */
+	vk::PipelineColorBlendAttachmentState colorBlendAttachment{
+	.blendEnable = vk::True,
+	.srcColorBlendFactor = vk::BlendFactor::eSrcAlpha,
+	.dstColorBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha,
+	.colorBlendOp = vk::BlendOp::eAdd,
+	.srcAlphaBlendFactor = vk::BlendFactor::eOne,
+	.dstAlphaBlendFactor = vk::BlendFactor::eZero,
+	.alphaBlendOp = vk::BlendOp::eAdd,
+	.colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA };
+
+	vk::PipelineColorBlendStateCreateInfo colorBlending{
+	.logicOpEnable = vk::False, .logicOp = vk::LogicOp::eCopy, .attachmentCount = 1, .pAttachments = &colorBlendAttachment };
+
+	vk::raii::PipelineLayout pipelineLayout = nullptr;
+
+	vk::PipelineLayoutCreateInfo pipelineLayoutInfo{ .setLayoutCount = 0, .pushConstantRangeCount = 0 };
+
+	pipelineLayout = vk::raii::PipelineLayout(context.device, pipelineLayoutInfo);
+
+	vk::StructureChain<vk::GraphicsPipelineCreateInfo, vk::PipelineRenderingCreateInfo> pipelineCreateInfoChain = {
+	{.stageCount = 2,
+	 .pStages = shaderStages,
+	 .pVertexInputState = &vertexInputInfo,
+	 .pInputAssemblyState = &inputAssembly,
+	 .pViewportState = &viewportState,
+	 .pRasterizationState = &rasterizer,
+	 .pMultisampleState = &multisampling,
+	 .pColorBlendState = &colorBlending,
+	 .pDynamicState = &dynamicState,
+	 .layout = pipelineLayout,
+	 .renderPass = nullptr},
+	{.colorAttachmentCount = 1, .pColorAttachmentFormats = &swapchain.swapChainSurfaceFormat.format} };
+
+	auto graphicsPipeline = vk::raii::Pipeline(context.device, nullptr, pipelineCreateInfoChain.get<vk::GraphicsPipelineCreateInfo>());
+
+	return VulkanPipeline(std::move(graphicsPipeline), std::move(shaderModule), std::move(pipelineLayout));
 }
 
 vk::raii::Instance
@@ -384,4 +452,21 @@ uint32_t Backend::VKManager::chooseSwapMinImageCount(vk::SurfaceCapabilitiesKHR 
 		minImageCount = surfaceCapabilities.maxImageCount;
 	}
 	return minImageCount;
+}
+
+std::vector<char> Backend::VKManager::readFile(const std::string& filename)
+{
+	std::ifstream file(filename, std::ios::ate | std::ios::binary);
+
+	if (!file.is_open()) {
+		throw std::runtime_error("failed to open file!");
+	}
+	std::vector<char> buffer(file.tellg());
+
+	file.seekg(0, std::ios::beg);
+	file.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
+
+	file.close();
+
+	return buffer;
 }

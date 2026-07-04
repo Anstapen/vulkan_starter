@@ -4,13 +4,15 @@
 namespace Backend
 {
 	class VulkanSwapChain;
+	class VKManager;
 }
 
 namespace Ping
 {
-
+	class Device;
 	class SwapChain
 	{
+		friend class Device;
 	public:
 		SwapChain(Backend::VulkanSwapChain&& in_swapChain);
 		~SwapChain();
