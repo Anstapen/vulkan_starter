@@ -1,5 +1,6 @@
 #include "Application.h"
 #include <assert.h>
+#include "Ping/Ping.h"
 
 Mupfel::Application::Application(
 	const std::string& in_name)
@@ -19,8 +20,15 @@ void Mupfel::Application::Init()
 	/* Create a Logger for the Application */
 	logger = Logger::Create("App");
 	logger->info("Initializing");
+
+	/* Initialize the Graphics library */
+	if (!Ping::Init())
+	{
+		logger->error("Failed to initialize Ping");
+		assert(false);
+	}
 	window = Window();
-	device = Ping::Device(Ping::DeviceSpecification());
+	device = Ping::Device(Ping::DeviceSpecification(), window.value());
 }
 
 void Mupfel::Application::MainLoop()
@@ -33,4 +41,5 @@ void Mupfel::Application::MainLoop()
 
 void Mupfel::Application::CleanUp()
 {
+	Ping::Shutdown();
 }

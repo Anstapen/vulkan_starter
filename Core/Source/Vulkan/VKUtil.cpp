@@ -182,8 +182,14 @@ Backend::VKQueueFamilyProperties::GetQueueIndexFromPhysicalDevice(
 			queue_family_properties[i].queueCount >=
 			wanted_queue_instances) {
 			index = i;
+			break;
 		}
 	}
 
 	return index;
+}
+
+bool Backend::VKQueueFamilyProperties::CheckSurfaceSupport(const vk::raii::PhysicalDevice& device, const vk::raii::SurfaceKHR& surface) const
+{
+	return device.getSurfaceSupportKHR(GetQueueIndexFromPhysicalDevice(device).value(), *surface);
 }

@@ -58,6 +58,7 @@ namespace Backend
         uint32_t wanted_queue_instances;
 
         std::optional<uint32_t> GetQueueIndexFromPhysicalDevice(const vk::raii::PhysicalDevice &device) const;
+		bool CheckSurfaceSupport(const vk::raii::PhysicalDevice& device, const vk::raii::SurfaceKHR& surface) const;
     };
 
 }

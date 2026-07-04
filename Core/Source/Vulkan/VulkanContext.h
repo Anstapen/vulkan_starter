@@ -17,17 +17,14 @@ namespace Backend
 		VulkanContext(VulkanContext&& other) noexcept;
 		VulkanContext& operator=(VulkanContext&& other) noexcept;
 	public:
-
 		vk::raii::Instance instance;
-		//vk::raii::PhysicalDevice physicalDevice;
+		vk::raii::PhysicalDevice phys_device;
+		vk::raii::SurfaceKHR surface;
 		vk::raii::Device device;
-		vk::raii::DebugUtilsMessengerEXT debug_messenger;
-		//vk::raii::Queue graphicsQueue;
-		//vk::raii::Queue computeQueue;
-		//vk::raii::Queue transferQueue;
+		std::vector<vk::raii::Queue> queues;
 	private:
 		VulkanContext();
-		VulkanContext(vk::raii::Instance&& in_instance, vk::raii::Device&& in_device, vk::raii::DebugUtilsMessengerEXT in_debug_messenger);
+		VulkanContext(vk::raii::Instance&& in_instance, vk::raii::PhysicalDevice in_phys_device, vk::raii::Device&& in_device, std::vector<vk::raii::Queue> in_queues, vk::raii::SurfaceKHR in_surface);
 	};
 }
 
