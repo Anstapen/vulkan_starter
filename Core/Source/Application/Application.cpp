@@ -4,6 +4,7 @@
 
 #include "Ping/SwapChain.h"
 #include "Ping/Pipeline.h"
+#include "Ping/CommandBuffer.h"
 
 Mupfel::Application::Application(
 	const std::string& in_name)
@@ -11,11 +12,16 @@ Mupfel::Application::Application(
 {
 }
 
+Mupfel::Application::~Application()
+{
+	device.value().WaitForCommands();
+	Ping::Shutdown();
+}
+
 void Mupfel::Application::Run()
 {
 	Init();
 	MainLoop();
-	CleanUp();
 }
 
 void Mupfel::Application::Init()
@@ -32,8 +38,7 @@ void Mupfel::Application::Init()
 	}
 	window = Window();
 	device = Ping::Device(Ping::DeviceSpecification(), window.value());
-	Ping::SwapChain swapChain = device->CreateSwapChain(window.value());
-	Ping::Pipeline pipeline = device->CreatePipeline(Ping::PipelineSpecification{ "Shaders/slang.spv" }, swapChain);
+	renderer.Init(device.value(), window.value());
 }
 
 void Mupfel::Application::MainLoop()
@@ -41,10 +46,6 @@ void Mupfel::Application::MainLoop()
 	while (!window->shouldClose())
 	{
 		window->pollEvents();
+		renderer.RenderNextFrame(device.value());
 	}
-}
-
-void Mupfel::Application::CleanUp()
-{
-	Ping::Shutdown();
 }

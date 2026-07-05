@@ -1,8 +1,8 @@
 #pragma once
-#define VULKAN_HPP_NO_STRUCT_CONSTRUCTORS
-#include <vulkan/vulkan_raii.hpp>
+#include "VulkanCommon.h"
 #include <memory>
-#include <GLFW/glfw3.h>
+#include "VulkanCommandPool.h"
+#include "VulkanQueue.h"
 
 namespace Backend
 {
@@ -21,10 +21,16 @@ namespace Backend
 		vk::raii::PhysicalDevice phys_device;
 		vk::raii::SurfaceKHR surface;
 		vk::raii::Device device;
-		std::vector<vk::raii::Queue> queues;
+		std::vector<VulkanQueue> queues;
+		std::vector<VulkanCommandPool> command_pools;
 	private:
 		VulkanContext();
-		VulkanContext(vk::raii::Instance&& in_instance, vk::raii::PhysicalDevice in_phys_device, vk::raii::Device&& in_device, std::vector<vk::raii::Queue> in_queues, vk::raii::SurfaceKHR in_surface);
+		VulkanContext(vk::raii::Instance&& in_instance,
+			vk::raii::PhysicalDevice in_phys_device,
+			vk::raii::Device&& in_device,
+			std::vector<VulkanQueue> in_queues,
+			vk::raii::SurfaceKHR in_surface,
+			std::vector<VulkanCommandPool> in_command_pools);
 	};
 }
 

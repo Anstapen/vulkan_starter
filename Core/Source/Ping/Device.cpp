@@ -47,14 +47,43 @@ Device& Ping::Device::operator=(Device&& other)
 	return *this;
 }
 
-SwapChain Ping::Device::CreateSwapChain(const Window& window)
+SwapChain Ping::Device::CreateSwapChain(const Window& window) const
 {
 	auto vulkanSwapChain = Backend::VKManager::CreateSwapChain(*vulkanContextPtr.get(), window);
 
 	return SwapChain(std::move(vulkanSwapChain));
 }
-Pipeline Ping::Device::CreatePipeline(const PipelineSpecification& specification, const SwapChain& swapchain)
+Pipeline Ping::Device::CreatePipeline(const PipelineSpecification& specification, const SwapChain& swapchain) const
 {
 	Backend::VulkanPipeline vulkanPipeline = Backend::VKManager::CreatePipeline(*vulkanContextPtr.get(), specification, *swapchain.vulkanSwapChainPtr.get());
 	return Pipeline(std::move(vulkanPipeline));
+}
+
+CommandBuffers Ping::Device::CreateCommandBuffers(QueueType buffer_type, uint32_t num_buffers) const
+{
+	if (num_buffers == 0)
+	{
+		return CommandBuffers();
+	}
+
+	auto backend_buffers = Backend::VKManager::CreateCommandBuffers(*vulkanContextPtr.get(), buffer_type, num_buffers);
+
+	if (backend_buffers.size() == 0)
+	{
+		throw std::runtime_error("Unable to create buffers!");
+	}
+
+	CommandBuffers cmd_buffers;
+
+	for (auto& buffer : backend_buffers)
+	{
+		cmd_buffers.emplace_back(std::move(buffer));
+	}
+
+	return cmd_buffers;
+}
+
+void Ping::Device::WaitForCommands() const
+{
+	Backend::VKManager::WaitForCommands(vulkanContextPtr->device);
 }

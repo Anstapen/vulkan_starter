@@ -12,8 +12,10 @@ namespace Ping {
 		const std::string shaderFilePath;
 	};
 
+	class CommandBuffer;
 	class Pipeline
 	{
+		friend class CommandBuffer;
 	public:
 		Pipeline(Backend::VulkanPipeline &&in_pipeline);
 		Pipeline(const Pipeline& other) = delete;

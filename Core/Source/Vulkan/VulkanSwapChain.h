@@ -1,6 +1,8 @@
 #pragma once
 #include <memory>
-#include "vulkan/vulkan_raii.hpp"
+#include <cstdint>
+#include "VulkanCommon.h"
+#include "VulkanContext.h"
 
 namespace Backend {
 	class VulkanSwapChain
@@ -17,10 +19,15 @@ namespace Backend {
 		VulkanSwapChain& operator=(const VulkanSwapChain& other) = delete;
 		VulkanSwapChain& operator=(VulkanSwapChain&& other) noexcept;
 	public:
-		vk::raii::SwapchainKHR swapChain;
-		std::vector<vk::Image> swapChainImages;
-		std::vector<vk::raii::ImageView> swapChainImageViews;
-		vk::SurfaceFormatKHR   swapChainSurfaceFormat;
-		vk::Extent2D           swapChainExtent;
+		uint32_t AcquireNextImage() const;
+		void Present(VulkanContext &context, uint32_t image_index);
+	public:
+		vk::raii::SwapchainKHR				swapChain;
+		std::vector<vk::Image>				swapChainImages;
+		std::vector<vk::raii::ImageView>	swapChainImageViews;
+		vk::SurfaceFormatKHR				swapChainSurfaceFormat;
+		vk::Extent2D						swapChainExtent;
+		vk::raii::Semaphore					presentCompleteSemaphore;
+		vk::raii::Semaphore					renderFinishedSemaphore;
 	};
 }

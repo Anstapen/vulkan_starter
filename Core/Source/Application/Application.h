@@ -14,6 +14,7 @@ namespace Mupfel
 	{
     public:
         Application(const std::string& in_name);
+        ~Application();
 
     public:
         void Run();
@@ -21,14 +22,13 @@ namespace Mupfel
     private:
         void Init();
         void MainLoop();
-        void CleanUp();
 
     private:
         const std::string name;
-        Renderer renderer;
         Logger::SafeLoggerPtr logger;
-		std::optional<Ping::Device> device;
-		std::optional<Window> window;
+        std::optional<Ping::Device> device;
+        std::optional<Window> window;
+        Renderer renderer;
 	};
 
 }

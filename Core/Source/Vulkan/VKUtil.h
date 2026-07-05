@@ -2,7 +2,7 @@
 #include <vector>
 #include <optional>
 #include "Logger/Logger.h"
-#include "vulkan/vulkan_raii.hpp"
+#include "VulkanCommon.h"
 
 namespace Backend
 {

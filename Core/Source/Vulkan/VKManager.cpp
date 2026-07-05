@@ -1,6 +1,10 @@
 #include "VKManager.h"
+#include "VulkanTypeConversions.h"
+#include "VulkanQueue.h"
 #include <cstdint>
 #include <fstream>
+
+#include "glfw/glfw3.h"
 
 using namespace Backend;
 
@@ -35,7 +39,7 @@ void Backend::VKManager::Shutdown()
 	glfwTerminate();
 }
 
-VulkanContext VKManager::CreateVulkanContext(const Window &window,
+VulkanContext VKManager::CreateVulkanContext(const Window& window,
 	const std::vector<VKQueueFamilyProperties>& wanted_queues,
 	const std::vector<const char*>& wanted_extensions,
 	const std::vector<const char*>& wanted_validation_layers)
@@ -47,10 +51,13 @@ VulkanContext VKManager::CreateVulkanContext(const Window &window,
 
 	vk::raii::PhysicalDevice phys_device = SelectBestDevice(instance, surface);
 
-	std::vector<vk::raii::Queue> actual_queues;
+	VulkanQueues actual_queues;
 	vk::raii::Device device = CreateLogicalDevice(phys_device, actual_queues, wanted_queues, { vk::KHRSwapchainExtensionName }, surface);
 
-	return VulkanContext(std::move(instance), std::move(phys_device), std::move(device), actual_queues, std::move(surface));
+	std::vector<VulkanCommandPool> command_pools;
+	CreateCommandPools(device, phys_device, wanted_queues, command_pools);
+
+	return VulkanContext(std::move(instance), std::move(phys_device), std::move(device), std::move(actual_queues), std::move(surface), std::move(command_pools));
 }
 
 VulkanSwapChain VKManager::CreateSwapChain(
@@ -149,6 +156,102 @@ VulkanPipeline Backend::VKManager::CreatePipeline(const VulkanContext& context, 
 	auto graphicsPipeline = vk::raii::Pipeline(context.device, nullptr, pipelineCreateInfoChain.get<vk::GraphicsPipelineCreateInfo>());
 
 	return VulkanPipeline(std::move(graphicsPipeline), std::move(shaderModule), std::move(pipelineLayout));
+}
+
+VulkanCommandBuffers Backend::VKManager::CreateCommandBuffers(const VulkanContext& context, Ping::QueueType type, uint32_t num_buffers)
+{
+	vk::raii::CommandBuffers cmd_buffers(nullptr);
+
+	for (const auto& pool : context.command_pools)
+	{
+		if (pool.type == type)
+		{
+			vk::CommandBufferAllocateInfo allocInfo{ .commandPool = pool.commandPool, .level = vk::CommandBufferLevel::ePrimary, .commandBufferCount = num_buffers };
+
+			cmd_buffers = std::move(vk::raii::CommandBuffers(context.device, allocInfo));
+		}
+	}
+
+	VulkanCommandBuffers vk_buffers;
+
+	for (auto& buf : cmd_buffers)
+	{
+		vk_buffers.emplace_back(VulkanCommandBuffer(std::move(buf), vk::raii::Fence(context.device, { .flags = vk::FenceCreateFlagBits::eSignaled })));
+	}
+
+	return vk_buffers;
+}
+
+void Backend::VKManager::transitionImageLayout(
+	VulkanCommandBuffer&				cmd_buffer,
+	VulkanSwapChain&					swapchain,
+	uint32_t							imageIndex,
+	const Ping::ImageLayoutTransition&	layout_transition)
+{
+	vk::ImageMemoryBarrier2 barrier = {
+			.srcStageMask = ToVulkan(layout_transition.srcStage),
+			.srcAccessMask = ToVulkan(layout_transition.srcAccessMask),
+			.dstStageMask = ToVulkan(layout_transition.dstStage),
+			.dstAccessMask = ToVulkan(layout_transition.dstAccessMask),
+			.oldLayout = ToVulkan(layout_transition.oldLayout),
+			.newLayout = ToVulkan(layout_transition.newLayout),
+			.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+			.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+			.image = swapchain.swapChainImages[imageIndex],
+			.subresourceRange = {
+				   .aspectMask = vk::ImageAspectFlagBits::eColor,
+				   .baseMipLevel = 0,
+				   .levelCount = 1,
+				   .baseArrayLayer = 0,
+				   .layerCount = 1} };
+	vk::DependencyInfo dependency_info = {
+		.dependencyFlags = {},
+		.imageMemoryBarrierCount = 1,
+		.pImageMemoryBarriers = &barrier };
+	cmd_buffer.commandBuffer.pipelineBarrier2(dependency_info);
+}
+
+void Backend::VKManager::beginRendering(
+	VulkanCommandBuffer& cmd_buffer,
+	VulkanSwapChain& swapchain,
+	uint32_t				imageIndex)
+{
+	vk::ClearValue              clearColor = vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f);
+	vk::RenderingAttachmentInfo attachmentInfo = {
+		.imageView = swapchain.swapChainImageViews[imageIndex],
+		.imageLayout = vk::ImageLayout::eColorAttachmentOptimal,
+		.loadOp = vk::AttachmentLoadOp::eClear,
+		.storeOp = vk::AttachmentStoreOp::eStore,
+		.clearValue = clearColor };
+
+	vk::RenderingInfo renderingInfo = {
+	.renderArea = {.offset = {0, 0}, .extent = swapchain.swapChainExtent},
+	.layerCount = 1,
+	.colorAttachmentCount = 1,
+	.pColorAttachments = &attachmentInfo };
+
+	cmd_buffer.commandBuffer.beginRendering(renderingInfo);
+
+	cmd_buffer.commandBuffer.setViewport(0, vk::Viewport(0.0f, 0.0f, static_cast<float>(swapchain.swapChainExtent.width), static_cast<float>(swapchain.swapChainExtent.height), 0.0f, 1.0f));
+	cmd_buffer.commandBuffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), swapchain.swapChainExtent));
+}
+
+uint32_t Backend::VKManager::GetQueueIndex(const VulkanContext& context, Ping::QueueType wanted_queue_type)
+{
+	for (uint32_t i = 0; i < context.queues.size(); i++)
+	{
+		if (context.queues[i].type == wanted_queue_type)
+		{
+			return i;
+		}
+	}
+
+	throw std::runtime_error("The wanted queue could not be found in the given context!");
+}
+
+void Backend::VKManager::WaitForCommands(const vk::raii::Device& device)
+{
+	device.waitIdle();
 }
 
 vk::raii::Instance
@@ -252,6 +355,39 @@ void VKManager::AddRequiredExtensions(
 	}
 }
 
+void Backend::VKManager::CreateCommandPools(
+	const vk::raii::Device& device,
+	const vk::raii::PhysicalDevice phys_device,
+	const std::vector<VKQueueFamilyProperties>& queues,
+	std::vector<VulkanCommandPool>& command_pools)
+{
+	for (const auto& queue : queues)
+	{
+		/* Get the queue family index */
+		auto queue_family_index = queue.GetQueueIndexFromPhysicalDevice(phys_device);
+		if (!queue_family_index.has_value()) {
+			logger->error("Unable to retrieve queue family index from physical device!");
+			throw std::runtime_error("Unable to retrieve queue family index from physical device!");
+		}
+		vk::CommandPoolCreateInfo pool_info{ .flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer, .queueFamilyIndex = queue_family_index.value() };
+		vk::raii::CommandPool command_pool(device, pool_info);
+
+
+		Ping::QueueType wanted_type = Ping::QueueType::Compute;
+		/* very verbose for now */
+		if (queue.wanted_flags & vk::QueueFlagBits::eGraphics)
+		{
+			wanted_type = Ping::QueueType::Graphics;
+		}
+		else if (queue.wanted_flags & vk::QueueFlagBits::eTransfer)
+		{
+			wanted_type = Ping::QueueType::Transfer;
+		}
+
+		command_pools.emplace_back(VulkanCommandPool(wanted_type, std::move(command_pool)));
+	}
+}
+
 vk::raii::PhysicalDevice VKManager::SelectBestDevice(vk::raii::Instance& instance,
 	vk::raii::SurfaceKHR& surface)
 {
@@ -319,7 +455,7 @@ bool VKManager::IsDeviceSuitable(
 }
 
 vk::raii::Device VKManager::CreateLogicalDevice(const vk::raii::PhysicalDevice& phys_device,
-	std::vector<vk::raii::Queue>& queues,
+	VulkanQueues& queues,
 	const std::vector<VKQueueFamilyProperties>& wanted_queues,
 	const std::vector<const char*>& wanted_extensions,
 	vk::raii::SurfaceKHR& surface)
@@ -348,7 +484,7 @@ vk::raii::Device VKManager::CreateLogicalDevice(const vk::raii::PhysicalDevice& 
 		*/
 		if ((wanted_queues[i].wanted_flags & vk::QueueFlagBits::eGraphics) && !wanted_queues[i].CheckSurfaceSupport(phys_device, surface))
 		{
- 			throw std::runtime_error("The graphics queue of the device has no presentation support!");
+			throw std::runtime_error("The graphics queue of the device has no presentation support!");
 		}
 
 		current_queue_create_info.pQueuePriorities = &queue_priorities[i];
@@ -369,7 +505,7 @@ vk::raii::Device VKManager::CreateLogicalDevice(const vk::raii::PhysicalDevice& 
 		featureChain = {
 			{},
 			{.shaderDrawParameters = true},
-			{.dynamicRendering = true},
+			{.synchronization2 = true, .dynamicRendering = true},
 			{.extendedDynamicState = true}
 	};
 
@@ -386,13 +522,19 @@ vk::raii::Device VKManager::CreateLogicalDevice(const vk::raii::PhysicalDevice& 
 
 	vk::raii::Device device = vk::raii::Device(phys_device, device_create_info);
 
-	/* retieve the queue handles */
-	vk::raii::Queue graphicsQueue(device, queue_create_infos[0].queueFamilyIndex, 0);
-
-	for (const auto& q : queue_create_infos)
+	for (uint32_t i = 0; i < wanted_queues.size(); i++)
 	{
-		vk::raii::Queue queue(device, q.queueFamilyIndex, 0);
-		queues.push_back(std::move(queue));
+		Ping::QueueType q_type = Ping::QueueType::Graphics;
+		vk::raii::Queue queue(device, queue_create_infos[i].queueFamilyIndex, 0);
+		if (wanted_queues[i].wanted_flags & vk::QueueFlagBits::eCompute)
+		{
+			q_type = Ping::QueueType::Compute;
+		}
+		else if (wanted_queues[i].wanted_flags & vk::QueueFlagBits::eTransfer)
+		{
+			q_type = Ping::QueueType::Transfer;
+		}
+		queues.push_back(VulkanQueue(q_type, std::move(queue)));
 	}
 
 	return device;
