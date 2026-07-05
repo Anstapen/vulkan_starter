@@ -28,7 +28,7 @@ namespace Ping {
 		Device& operator=(const Device& other) = delete;
 		Device& operator=(Device&& other);
 	public:
-		SwapChain CreateSwapChain(const Window& window) const;
+		SwapChain CreateSwapChain(const Window& window, uint32_t frames_in_flight) const;
 		Pipeline CreatePipeline(const PipelineSpecification& specification, const SwapChain &swapchain) const;
 		CommandBuffers CreateCommandBuffers(QueueType buffer_type, uint32_t num_buffers) const;
 		void WaitForCommands() const;

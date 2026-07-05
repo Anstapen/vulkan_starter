@@ -26,13 +26,18 @@ VulkanCommandBuffer& Backend::VulkanCommandBuffer::operator=(VulkanCommandBuffer
 
 void VulkanCommandBuffer::Begin(const vk::raii::Device& device) const
 {
+	
+	device.resetFences(*drawFence);
+	commandBuffer.begin({});
+}
+
+void Backend::VulkanCommandBuffer::WaitForFences(const vk::raii::Device& device) const
+{
 	auto fenceResult = device.waitForFences(*drawFence, vk::True, UINT64_MAX);
 	if (fenceResult != vk::Result::eSuccess)
 	{
 		throw std::runtime_error("failed to wait for fence!");
 	}
-	device.resetFences(*drawFence);
-	commandBuffer.begin({});
 }
 
 void Backend::VulkanCommandBuffer::BindPipeline(const VulkanPipeline& pipeline) const
@@ -45,16 +50,16 @@ void VulkanCommandBuffer::Draw() const
 	commandBuffer.draw(3, 1, 0, 0);
 }
 
-void Backend::VulkanCommandBuffer::Submit(VulkanContext& context, VulkanSwapChain& swapchain)
+void Backend::VulkanCommandBuffer::Submit(VulkanContext& context, VulkanSwapChain& swapchain, uint32_t frameIndex, uint32_t imageIndex) const
 {
 	vk::PipelineStageFlags waitDestinationStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
 	vk::SubmitInfo   submitInfo{.waitSemaphoreCount = 1,
-								.pWaitSemaphores = &*swapchain.presentCompleteSemaphore,
+								.pWaitSemaphores = &*swapchain.presentCompleteSemaphores[frameIndex],
 								.pWaitDstStageMask = &waitDestinationStageMask,
 								.commandBufferCount = 1,
 								.pCommandBuffers = &*commandBuffer,
 								.signalSemaphoreCount = 1,
-								.pSignalSemaphores = &*swapchain.renderFinishedSemaphore };
+								.pSignalSemaphores = &*swapchain.renderFinishedSemaphores[imageIndex]};
 	
 	/* retrieve the correct queue */
 	uint32_t q_index = VKManager::GetQueueIndex(context, Ping::QueueType::Graphics);

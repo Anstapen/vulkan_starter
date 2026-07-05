@@ -8,14 +8,15 @@ Backend::VulkanSwapChain::VulkanSwapChain(
 	const vk::raii::Device& device,
 	vk::raii::SwapchainKHR&& in_swapChain,
 	vk::SurfaceFormatKHR in_swapChainSurfaceFormat,
-	vk::Extent2D in_swapChainExtent) :
+	vk::Extent2D in_swapChainExtent,
+	uint32_t frames_in_flight) :
 	swapChain(std::move(in_swapChain)),
 	swapChainImages(swapChain.getImages()),
 	swapChainImageViews(),
 	swapChainSurfaceFormat(in_swapChainSurfaceFormat),
 	swapChainExtent(in_swapChainExtent),
-	presentCompleteSemaphore(device, vk::SemaphoreCreateInfo()),
-	renderFinishedSemaphore(device, vk::SemaphoreCreateInfo())
+	presentCompleteSemaphores(),
+	renderFinishedSemaphores()
 {
 	vk::ImageViewCreateInfo imageViewCreateInfo;
 	imageViewCreateInfo.viewType = vk::ImageViewType::e2D;
@@ -26,6 +27,12 @@ Backend::VulkanSwapChain::VulkanSwapChain(
 	{
 		imageViewCreateInfo.image = image;
 		swapChainImageViews.emplace_back(device, imageViewCreateInfo);
+		renderFinishedSemaphores.emplace_back(vk::raii::Semaphore(device, vk::SemaphoreCreateInfo()));
+	}
+
+	for (uint32_t i = 0; i < frames_in_flight; i++)
+	{
+		presentCompleteSemaphores.emplace_back(vk::raii::Semaphore(device, vk::SemaphoreCreateInfo()));
 	}
 }
 
@@ -35,8 +42,8 @@ Backend::VulkanSwapChain::VulkanSwapChain(VulkanSwapChain&& other) noexcept :
 	swapChainImageViews(std::move(other.swapChainImageViews)),
 	swapChainSurfaceFormat(other.swapChainSurfaceFormat),
 	swapChainExtent(other.swapChainExtent),
-	presentCompleteSemaphore(std::move(other.presentCompleteSemaphore)),
-	renderFinishedSemaphore(std::move(other.renderFinishedSemaphore))
+	presentCompleteSemaphores(std::move(other.presentCompleteSemaphores)),
+	renderFinishedSemaphores(std::move(other.renderFinishedSemaphores))
 {
 }
 
@@ -47,28 +54,41 @@ VulkanSwapChain& Backend::VulkanSwapChain::operator=(VulkanSwapChain&& other) no
 	swapChainImageViews = std::move(other.swapChainImageViews);
 	swapChainSurfaceFormat = other.swapChainSurfaceFormat;
 	swapChainExtent = other.swapChainExtent;
-	presentCompleteSemaphore = std::move(other.presentCompleteSemaphore);
-	renderFinishedSemaphore = std::move(other.renderFinishedSemaphore);
+	presentCompleteSemaphores = std::move(other.presentCompleteSemaphores);
+	renderFinishedSemaphores = std::move(other.renderFinishedSemaphores);
 	return *this;
 }
 
-uint32_t Backend::VulkanSwapChain::AcquireNextImage() const
+uint32_t Backend::VulkanSwapChain::AcquireNextImage(uint32_t frameIndex) const
 {
-	auto [result, imageIndex] = swapChain.acquireNextImage(UINT64_MAX, *presentCompleteSemaphore, nullptr);
+	auto [result, imageIndex] = swapChain.acquireNextImage(UINT64_MAX, *presentCompleteSemaphores[frameIndex], nullptr);
+
+
+	if (result == vk::Result::eErrorOutOfDateKHR)
+	{
+		return std::numeric_limits<uint32_t>::max();
+	}
+	if (result != vk::Result::eSuccess && result != vk::Result::eSuboptimalKHR)
+	{
+		assert(result == vk::Result::eTimeout || result == vk::Result::eNotReady);
+		throw std::runtime_error("failed to acquire swap chain image!");
+	}
 
 	return imageIndex;
 }
 
-void Backend::VulkanSwapChain::Present(VulkanContext& context, uint32_t image_index)
+bool Backend::VulkanSwapChain::Present(VulkanContext& context, uint32_t image_index)
 {
 	const vk::PresentInfoKHR presentInfoKHR{
 	.waitSemaphoreCount = 1,
-	.pWaitSemaphores = &*renderFinishedSemaphore,
+	.pWaitSemaphores = &*renderFinishedSemaphores[image_index],
 	.swapchainCount = 1,
 	.pSwapchains = &*swapChain,
 	.pImageIndices = &image_index };
 
 	uint32_t q_index = VKManager::GetQueueIndex(context, Ping::QueueType::Graphics);
 
-	context.queues[q_index].queue.presentKHR(presentInfoKHR);
+	vk::Result result = context.queues[q_index].queue.presentKHR(presentInfoKHR);
+
+	return !((result == vk::Result::eSuboptimalKHR) || (result == vk::Result::eErrorOutOfDateKHR));
 }

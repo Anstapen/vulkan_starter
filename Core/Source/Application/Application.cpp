@@ -46,6 +46,6 @@ void Mupfel::Application::MainLoop()
 	while (!window->shouldClose())
 	{
 		window->pollEvents();
-		renderer.RenderNextFrame(device.value());
+		renderer.RenderNextFrame(device.value(), window.value());
 	}
 }

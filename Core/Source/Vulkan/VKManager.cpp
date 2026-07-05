@@ -61,8 +61,9 @@ VulkanContext VKManager::CreateVulkanContext(const Window& window,
 }
 
 VulkanSwapChain VKManager::CreateSwapChain(
-	const VulkanContext& context,
-	const Window& window)
+	const VulkanContext&	context,
+	const Window&			window,
+	uint32_t				frames_in_flight)
 {
 	auto surfaceCapabilities = context.phys_device.getSurfaceCapabilitiesKHR(*context.surface);
 	std::vector<vk::SurfaceFormatKHR> surfaceFormats = context.phys_device.getSurfaceFormatsKHR(*context.surface);
@@ -88,7 +89,7 @@ VulkanSwapChain VKManager::CreateSwapChain(
 
 	auto swap_chain = vk::raii::SwapchainKHR(context.device, swapChainCreateInfo);
 
-	return VulkanSwapChain(context.device, std::move(swap_chain), swapChainSurfaceFormat, swapChainExtent);
+	return VulkanSwapChain(context.device, std::move(swap_chain), swapChainSurfaceFormat, swapChainExtent, frames_in_flight);
 }
 
 VulkanPipeline Backend::VKManager::CreatePipeline(const VulkanContext& context, const Ping::PipelineSpecification& specification, const VulkanSwapChain& swapchain)

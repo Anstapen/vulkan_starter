@@ -47,9 +47,9 @@ Device& Ping::Device::operator=(Device&& other)
 	return *this;
 }
 
-SwapChain Ping::Device::CreateSwapChain(const Window& window) const
+SwapChain Ping::Device::CreateSwapChain(const Window& window, uint32_t frames_in_flight) const
 {
-	auto vulkanSwapChain = Backend::VKManager::CreateSwapChain(*vulkanContextPtr.get(), window);
+	auto vulkanSwapChain = Backend::VKManager::CreateSwapChain(*vulkanContextPtr.get(), window, frames_in_flight);
 
 	return SwapChain(std::move(vulkanSwapChain));
 }

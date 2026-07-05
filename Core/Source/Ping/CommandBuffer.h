@@ -23,11 +23,12 @@ namespace Ping
 		CommandBuffer& operator=(CommandBuffer&& other) noexcept;
 		~CommandBuffer() noexcept;
 	public:
+		void WaitForFences(const Device& device);
 		void Begin(const Device &device);
 		void transitionImageLayout(SwapChain& swapchain, uint32_t image_index, const ImageLayoutTransition &transition);
 		void BeginRendering(SwapChain & swapchain, uint32_t image_index);
 		void BindPipeline(Pipeline& pipeline);
-		void Submit(const Device& device, SwapChain& swapchain);
+		void Submit(const Device& device, const SwapChain& swapchain, uint32_t frameIndex, uint32_t imageIndex);
 		void Draw() const;
 		void EndRendering() const;
 		void End() const;

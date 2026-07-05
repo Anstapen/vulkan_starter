@@ -15,10 +15,11 @@ namespace Backend {
 		VulkanCommandBuffer& operator=(VulkanCommandBuffer&& other) noexcept;
 		~VulkanCommandBuffer() = default;
 	public:
-		void Begin(const vk::raii::Device &device) const;
+		void WaitForFences(const vk::raii::Device& device) const;
+		void Begin(const vk::raii::Device& device) const;
 		void BindPipeline(const VulkanPipeline& pipeline) const;
 		void Draw() const;
-		void Submit(VulkanContext &context, VulkanSwapChain& swapchain);
+		void Submit(VulkanContext &context, VulkanSwapChain& swapchain, uint32_t frameIndex, uint32_t imageIndex) const;
 		void EndRendering() const;
 		void End() const;
 	public:

@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 
 /* forward declarations */
 struct GLFWwindow;
@@ -16,7 +17,11 @@ public:
 public:
 	bool shouldClose() const;
 	void pollEvents() const;
+	void waitEvents() const;
 	GLFWwindow* GetGLFWHandle() const;
+	void GetFramebufferSize(int32_t& width, int32_t& height) const;
+public:
+	volatile bool windowResized = false;
 private:
 	GLFWwindow* window;
 };

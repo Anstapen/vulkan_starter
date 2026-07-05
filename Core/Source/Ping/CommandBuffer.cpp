@@ -23,6 +23,11 @@ Ping::CommandBuffer::~CommandBuffer()
 {
 }
 
+void Ping::CommandBuffer::WaitForFences(const Device& device)
+{
+	vulkanCommandBufferPtr->WaitForFences(device.vulkanContextPtr->device);
+}
+
 void Ping::CommandBuffer::Begin(const Device& device)
 {
 	
@@ -44,9 +49,9 @@ void Ping::CommandBuffer::BindPipeline(Pipeline& pipeline)
 	vulkanCommandBufferPtr->BindPipeline(*pipeline.vulkanPipelinePtr.get());
 }
 
-void Ping::CommandBuffer::Submit(const Device& device, SwapChain& swapchain)
+void Ping::CommandBuffer::Submit(const Device& device, const SwapChain& swapchain, uint32_t frameIndex, uint32_t imageIndex)
 {
-	vulkanCommandBufferPtr->Submit(*device.vulkanContextPtr.get(), *swapchain.vulkanSwapChainPtr.get());
+	vulkanCommandBufferPtr->Submit(*device.vulkanContextPtr.get(), *swapchain.vulkanSwapChainPtr.get(), frameIndex, imageIndex);
 }
 
 void Ping::CommandBuffer::Draw() const

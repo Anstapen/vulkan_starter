@@ -1,5 +1,6 @@
 #include "SwapChain.h"
 #include "Vulkan/VulkanSwapChain.h"
+#include "Vulkan/VKManager.h"
 #include "Device.h"
 
 using namespace Ping;
@@ -22,12 +23,27 @@ SwapChain& SwapChain::operator=(SwapChain&& other)
 	return *this;
 }
 
-uint32_t Ping::SwapChain::AcquireNextImage()
+uint32_t Ping::SwapChain::AcquireNextImage(uint32_t frameIndex)
 {
-	return vulkanSwapChainPtr->AcquireNextImage();
+	return vulkanSwapChainPtr->AcquireNextImage(frameIndex);
 }
 
-void Ping::SwapChain::Present(const Device& device, uint32_t image_index)
+[[nodiscard]] bool Ping::SwapChain::Present(const Device& device, uint32_t image_index)
 {
-	vulkanSwapChainPtr->Present(*device.vulkanContextPtr.get(), image_index);
+	return vulkanSwapChainPtr->Present(*device.vulkanContextPtr.get(), image_index);
+}
+
+void Ping::SwapChain::Recreate(const Device& device, const Window& window, uint32_t frames_in_flight)
+{
+	int32_t width = 0, height = 0;
+	window.GetFramebufferSize(width, height);
+	while (width == 0 || height == 0) {
+		window.GetFramebufferSize(width, height);
+		window.waitEvents();
+	}
+
+	device.WaitForCommands();
+	vulkanSwapChainPtr.reset();
+	vulkanSwapChainPtr = std::make_unique<Backend::VulkanSwapChain>(
+		Backend::VKManager::CreateSwapChain(*device.vulkanContextPtr.get(), window, frames_in_flight));
 }

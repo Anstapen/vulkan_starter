@@ -30,7 +30,8 @@ namespace Backend {
 
 		static VulkanSwapChain CreateSwapChain(
 			const VulkanContext &context,
-			const Window		&window);
+			const Window		&window,
+			uint32_t			frames_in_flight);
 
 		static VulkanPipeline CreatePipeline(
 			const VulkanContext&				context,
