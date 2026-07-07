@@ -7,7 +7,4 @@ bool Ping::Init()
 	return true;
 }
 
-void Ping::Shutdown()
-{
-	Backend::VKManager::Shutdown();
-}
+void Ping::Shutdown() { Backend::VKManager::Shutdown(); }

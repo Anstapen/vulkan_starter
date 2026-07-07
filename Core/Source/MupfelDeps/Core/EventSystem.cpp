@@ -1,8 +1,6 @@
 #include "EventSystem.h"
 
-Mupfel::EventSystem::EventSystem() : current(0), next(1)
-{
-}
+Mupfel::EventSystem::EventSystem() : current(0), next(1) {}
 
 void Mupfel::EventSystem::Update()
 {
@@ -23,7 +21,4 @@ void Mupfel::EventSystem::Update()
 	events_this_frame = 0;
 }
 
-uint64_t Mupfel::EventSystem::GetLastEventCount() const
-{
-	return events_last_frame;
-}
+uint64_t Mupfel::EventSystem::GetLastEventCount() const { return events_last_frame; }

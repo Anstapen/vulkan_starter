@@ -1,83 +1,114 @@
 #pragma once
-#include "Registry.h"
-#include "Entity.h"
-#include <tuple>
-#include <functional>
 #include "Components/ComponentIndex.h"
+#include "Entity.h"
+#include "Registry.h"
+#include <functional>
+#include <tuple>
 
-namespace Mupfel {
+namespace Mupfel
+{
 
-    template<typename... Components>
-    class View {
-    public:
-        using component_types = std::tuple<Components...>;
-        using BaseComponent = std::tuple_element_t<0, component_types>;
+/**
+ * Iterable range over every entity in `reg` that has all of `Components...`, yielding
+ * `std::tuple<Entity, Components&...>` (usable with structured bindings, e.g.
+ * `for (auto [e, transform, texture] : registry.view<Transform, Texture>())`).
+ *
+ * Iterates the dense array of the first component type in `Components...` and filters by
+ * signature, so it's cheapest when that first type is the rarest of the requested components.
+ */
+template <typename FirstComponent, typename... Components> class View
+{
+public:
+	/** The first requested component type; its dense array drives iteration. */
+	using BaseComponent = FirstComponent;
 
-        explicit View(Registry& in_reg)
-            : reg(in_reg)
-        {
-            // Erzeuge die benoetigte Components-Signatur
-            required_signature = ((1ull << ComponentIndex::Index<Components>()) | ...);
-        }
+	/**
+	 * Computes the combined signature for `Components...` up front so each iterator step is a cheap
+	 * bitmask compare.
+	 */
+	explicit View(Registry& in_reg) : reg(in_reg)
+	{
+		// Erzeuge die benoetigte Components-Signatur
+		required_signature = (1ull << ComponentIndex::Index<FirstComponent>()) |
+							 (0ull | ... | (1ull << ComponentIndex::Index<Components>()));
+	}
 
-        struct Iterator {
-            Registry& registry;
-            size_t index;
-            Entity::Signature required_signature;
+	/** Forward iterator over `BaseComponent`'s dense array, skipping entities missing any of `Components...`. */
+	struct Iterator
+	{
+		/** The registry being iterated. */
+		Registry& registry;
+		/** Current slot in `BaseComponent`'s dense array. */
+		size_t index;
+		/** Combined signature every yielded entity must satisfy. */
+		Entity::Signature required_signature;
 
-            Iterator(Registry& reg,
-                uint64_t req,
-                size_t idx)
-                : registry(reg), index(idx), required_signature(req)
-            {
-                SkipInvalid();
-            }
+		/** Starts at slot `idx` and immediately skips forward past any entity missing a required component. */
+		Iterator(Registry& reg, uint64_t req, size_t idx) : registry(reg), index(idx), required_signature(req)
+		{
+			SkipInvalid();
+		}
 
-            void SkipInvalid() {
-                auto& comp_array = registry.GetComponentArray<BaseComponent>();
-                while (index < comp_array.Size()) {
-                    Entity e{ comp_array.dense[index] };
-                    Entity::Signature sig = registry.GetSignature(e.Index());
+		/** Advances `index` until it points at an entity satisfying `required_signature`, or past the end. */
+		void SkipInvalid()
+		{
+			auto& comp_array = registry.GetComponentArray<BaseComponent>();
+			while (index < comp_array.Size())
+			{
+				Entity			  e{comp_array.dense[index]};
+				Entity::Signature sig = registry.GetSignature(e.Index());
 
-                    if ((sig & required_signature) == required_signature)
-                        break;
+				if ((sig & required_signature) == required_signature)
+					break;
 
-                    ++index;
-                }
-            }
+				++index;
+			}
+		}
 
-            bool operator!=(const Iterator& o) const { return index != o.index; }
+		/** Whether `o` is at a different slot (used for the `begin() != end()` loop condition). */
+		bool operator!=(const Iterator& o) const { return index != o.index; }
 
-            void operator++() {
-                ++index;
-                SkipInvalid();
-            }
+		/** Advances to the next matching entity. */
+		void operator++()
+		{
+			++index;
+			SkipInvalid();
+		}
 
-            auto operator*() {
-                auto& comp_array = registry.GetComponentArray<BaseComponent>();
-                Entity e{ comp_array.dense[index] };
+		/** @return `{entity, Components&...}` for the entity at the current slot. */
+		auto operator*()
+		{
+			auto&  comp_array = registry.GetComponentArray<BaseComponent>();
+			Entity e{comp_array.dense[index]};
 
-                // Fold-Expression: tuple of references erzeugen
-                auto tuple_of_refs =
-                    std::tuple<Components&...>(registry.GetComponent<Components>(e)...);
+			FirstComponent& first_ref = comp_array.components[index];
 
-                return std::tuple_cat(std::make_tuple(e), tuple_of_refs);
-            }
-        };
+			// Fold-Expression: tuple of references erzeugen
+			auto rest_of_refs = std::tuple<Components&...>(registry.GetComponent<Components>(e)...);
 
-    public:
-        Iterator begin() {
-            return Iterator(reg, required_signature, 0);
-        }
+			return std::tuple_cat(std::make_tuple(e), std::tuple<FirstComponent&>(first_ref), rest_of_refs);
+		}
+	};
 
-        Iterator end() {
-            auto& array = reg.GetComponentArray<BaseComponent>();
-            return Iterator(reg, required_signature, array.Size());
-        }
+public:
+	/** Iterator at the first matching entity (or `end()` if there are none). */
+	Iterator begin() { return Iterator(reg, required_signature, 0); }
 
-    private:
-        Registry& reg;
-        uint64_t required_signature = 0;
-    };
+	/**
+	 * @note Recomputes `BaseComponent`'s current size — only stable as long as the array isn't
+	 * mutated during iteration.
+	 */
+	Iterator end()
+	{
+		auto& array = reg.GetComponentArray<BaseComponent>();
+		return Iterator(reg, required_signature, array.Size());
+	}
 
-}
+private:
+	/** The registry this view iterates. */
+	Registry& reg;
+	/** Combined signature bit for each of `Components...`. */
+	uint64_t required_signature = 0;
+};
+
+} // namespace Mupfel

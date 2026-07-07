@@ -1,0 +1,41 @@
+# Reflects the conventions documented in CLAUDE.md's "Coding Style & Naming
+# Conventions" section, plus the explicitly requested pointer/reference
+# alignment. Anything not listed here falls back to LLVM's defaults.
+
+BasedOnStyle: LLVM
+Language: Cpp
+Standard: c++20
+
+ColumnLimit: 120
+
+# Indentation: tabs
+UseTab: Always
+IndentWidth: 4
+TabWidth: 4
+
+# public:/private: sit flush with the class brace; members are indented one
+# further tab beyond the access specifier
+AccessModifierOffset: -4
+
+# Allman-style braces: class declarations, function bodies, and control-flow
+# blocks (if/for/while) all open on their own line
+BreakBeforeBraces: Allman
+
+PointerAlignment: Left
+ReferenceAlignment: Pointer
+
+# When a function signature doesn't fit on one line, break right after the
+# opening paren and put one parameter per line (matches VKManager's style)
+AlignAfterOpenBracket: AlwaysBreak
+BinPackParameters: false
+AllowAllParametersOfDeclarationOnNextLine: false
+
+# Align wrapped parameter names in a column within one function's parameter
+# list (does not reach across the blank line into the next function's list)
+AlignConsecutiveDeclarations: Consecutive
+
+# Blank line between consecutive function/class/struct/enum definitions
+# (bodies with braces, e.g. .cpp function implementations). Has no effect on
+# plain declarations like the ones in VKManager.h, since there's no body to
+# separate.
+SeparateDefinitionBlocks: Always

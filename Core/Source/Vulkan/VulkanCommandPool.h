@@ -1,22 +1,29 @@
 #pragma once
-#include "VulkanCommon.h"
 #include "Ping/Types.h"
+#include "VulkanCommon.h"
 
 #include <cstdint>
 
-namespace Backend {
+namespace Backend
+{
 
-	class VulkanCommandPool
-	{
-	public:
-		VulkanCommandPool(Ping::QueueType in_type, vk::raii::CommandPool&& in_cmd_pool) noexcept;
-		~VulkanCommandPool() noexcept = default;
-		VulkanCommandPool(const VulkanCommandPool& other) = delete;
-		VulkanCommandPool(VulkanCommandPool&& other) noexcept;
-		VulkanCommandPool& operator=(const VulkanCommandPool& other) = delete;
-		VulkanCommandPool& operator=(VulkanCommandPool&& other) noexcept;
-		Ping::QueueType type;
-		vk::raii::CommandPool commandPool;
-	};
+/** A Vulkan command pool tagged with which `Ping::QueueType` it allocates command buffers for. */
+class VulkanCommandPool
+{
+public:
+	/** Takes ownership of an already-created command pool, tagged as `in_type`. */
+	VulkanCommandPool(Ping::QueueType in_type, vk::raii::CommandPool&& in_cmd_pool) noexcept;
+	~VulkanCommandPool() noexcept = default;
+	VulkanCommandPool(const VulkanCommandPool& other) = delete;
+	/** Move-constructs from `other`, taking over its type and command pool handle. */
+	VulkanCommandPool(VulkanCommandPool&& other) noexcept;
+	VulkanCommandPool& operator=(const VulkanCommandPool& other) = delete;
+	/** Move-assigns from `other`, taking over its type and command pool handle. */
+	VulkanCommandPool& operator=(VulkanCommandPool&& other) noexcept;
+	/** Which queue family this pool allocates command buffers for. */
+	Ping::QueueType type;
+	/** The underlying Vulkan command pool. */
+	vk::raii::CommandPool commandPool;
+};
 
-}
+} // namespace Backend

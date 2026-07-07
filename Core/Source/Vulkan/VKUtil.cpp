@@ -1,7 +1,7 @@
 #include "VKUtil.h"
-#include <cstring>
-#include <cstdlib>
 #include <cstdint>
+#include <cstdlib>
+#include <cstring>
 #include <vector>
 
 Backend::VKExtensions::~VKExtensions()
@@ -34,16 +34,9 @@ void Backend::VKExtensions::Add(const char* extension_name)
 	extension_strings.push_back(new_string);
 }
 
-const char* const* Backend::VKExtensions::Data() const
-{
-	return extension_strings.data();
-}
+const char* const* Backend::VKExtensions::Data() const { return extension_strings.data(); }
 
-size_t Backend::VKExtensions::Size() const
-{
-	return extension_strings.size();
-}
-
+size_t Backend::VKExtensions::Size() const { return extension_strings.size(); }
 
 bool Backend::VKExtensions::IsExtensionSupported(const char* extension_name)
 {
@@ -117,16 +110,9 @@ void Backend::VKValidationLayers::Add(const char* validation_layer_name)
 	validation_layers.push_back(new_string);
 }
 
-const char* const* Backend::VKValidationLayers::Data() const
-{
-	return validation_layers.data();
-}
+const char* const* Backend::VKValidationLayers::Data() const { return validation_layers.data(); }
 
-size_t Backend::VKValidationLayers::Size() const
-{
-	return validation_layers.size();
-}
-
+size_t Backend::VKValidationLayers::Size() const { return validation_layers.size(); }
 
 bool Backend::VKValidationLayers::IsValidationLayerSupported(const char* validation_layer_name)
 {
@@ -170,17 +156,16 @@ std::vector<VkLayerProperties> Backend::VKValidationLayers::GetAvailableValidati
 }
 
 std::optional<uint32_t>
-Backend::VKQueueFamilyProperties::GetQueueIndexFromPhysicalDevice(
-	const vk::raii::PhysicalDevice& device) const
+Backend::VKQueueFamilyProperties::GetQueueIndexFromPhysicalDevice(const vk::raii::PhysicalDevice& device) const
 {
 	auto queue_family_properties = device.getQueueFamilyProperties();
 
 	std::optional<uint32_t> index;
-	for (uint32_t i = 0; i < queue_family_properties.size(); i++) {
-		if (((queue_family_properties[i].queueFlags &
-			wanted_flags) == wanted_flags) &&
-			queue_family_properties[i].queueCount >=
-			wanted_queue_instances) {
+	for (uint32_t i = 0; i < queue_family_properties.size(); i++)
+	{
+		if (((queue_family_properties[i].queueFlags & wanted_flags) == wanted_flags) &&
+			queue_family_properties[i].queueCount >= wanted_queue_instances)
+		{
 			index = i;
 			break;
 		}
@@ -189,7 +174,9 @@ Backend::VKQueueFamilyProperties::GetQueueIndexFromPhysicalDevice(
 	return index;
 }
 
-bool Backend::VKQueueFamilyProperties::CheckSurfaceSupport(const vk::raii::PhysicalDevice& device, const vk::raii::SurfaceKHR& surface) const
+bool Backend::VKQueueFamilyProperties::CheckSurfaceSupport(
+	const vk::raii::PhysicalDevice& device,
+	const vk::raii::SurfaceKHR&		surface) const
 {
 	return device.getSurfaceSupportKHR(GetQueueIndexFromPhysicalDevice(device).value(), *surface);
 }

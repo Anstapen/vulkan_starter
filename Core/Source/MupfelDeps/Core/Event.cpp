@@ -2,7 +2,4 @@
 
 using namespace Mupfel;
 
-float Event::GetTimeStamp() const
-{
-	return ts;
-}
+float Event::GetTimeStamp() const { return ts; }

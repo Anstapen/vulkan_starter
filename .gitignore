@@ -17,3 +17,7 @@ Vendor/Sources/*
 App/logs/
 
 *.filters
+
+Reviews/
+
+Docs/Generated/

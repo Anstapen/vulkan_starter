@@ -5,15 +5,13 @@ using namespace Backend;
 
 Backend::VulkanCommandBuffer::VulkanCommandBuffer(
 	vk::raii::CommandBuffer&& in_cmd_buffer,
-	vk::raii::Fence&& in_draw_fence) noexcept :
-	commandBuffer(std::move(in_cmd_buffer)),
-	drawFence(std::move(in_draw_fence))
+	vk::raii::Fence&&		  in_draw_fence) noexcept
+	: commandBuffer(std::move(in_cmd_buffer)), drawFence(std::move(in_draw_fence))
 {
 }
 
-Backend::VulkanCommandBuffer::VulkanCommandBuffer(VulkanCommandBuffer&& other) noexcept :
-	commandBuffer(std::move(other.commandBuffer)),
-	drawFence(std::move(other.drawFence))
+Backend::VulkanCommandBuffer::VulkanCommandBuffer(VulkanCommandBuffer&& other) noexcept
+	: commandBuffer(std::move(other.commandBuffer)), drawFence(std::move(other.drawFence))
 {
 }
 
@@ -26,7 +24,7 @@ VulkanCommandBuffer& Backend::VulkanCommandBuffer::operator=(VulkanCommandBuffer
 
 void VulkanCommandBuffer::Begin(const vk::raii::Device& device) const
 {
-	
+
 	device.resetFences(*drawFence);
 	commandBuffer.begin({});
 }
@@ -45,34 +43,39 @@ void Backend::VulkanCommandBuffer::BindPipeline(const VulkanPipeline& pipeline) 
 	commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *pipeline.pipeline);
 }
 
-void VulkanCommandBuffer::Draw() const
+void Backend::VulkanCommandBuffer::BindVertexBuffer(
+	const VulkanPipeline& pipeline,
+	const VulkanBuffer&	  buffer,
+	uint32_t			  binding) const
 {
-	commandBuffer.draw(3, 1, 0, 0);
+
+	commandBuffer.bindVertexBuffers(binding, *buffer.buffer, {0});
 }
 
-void Backend::VulkanCommandBuffer::Submit(VulkanContext& context, VulkanSwapChain& swapchain, uint32_t frameIndex, uint32_t imageIndex) const
+void VulkanCommandBuffer::Draw(uint32_t vertex_count) const { commandBuffer.draw(vertex_count, 1, 0, 0); }
+
+void Backend::VulkanCommandBuffer::Submit(
+	VulkanContext&	 context,
+	VulkanSwapChain& swapchain,
+	uint32_t		 frameIndex,
+	uint32_t		 imageIndex) const
 {
 	vk::PipelineStageFlags waitDestinationStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
-	vk::SubmitInfo   submitInfo{.waitSemaphoreCount = 1,
-								.pWaitSemaphores = &*swapchain.presentCompleteSemaphores[frameIndex],
-								.pWaitDstStageMask = &waitDestinationStageMask,
-								.commandBufferCount = 1,
-								.pCommandBuffers = &*commandBuffer,
-								.signalSemaphoreCount = 1,
-								.pSignalSemaphores = &*swapchain.renderFinishedSemaphores[imageIndex]};
-	
+	vk::SubmitInfo		   submitInfo{
+				.waitSemaphoreCount = 1,
+				.pWaitSemaphores = &*swapchain.presentCompleteSemaphores[frameIndex],
+				.pWaitDstStageMask = &waitDestinationStageMask,
+				.commandBufferCount = 1,
+				.pCommandBuffers = &*commandBuffer,
+				.signalSemaphoreCount = 1,
+				.pSignalSemaphores = &*swapchain.renderFinishedSemaphores[imageIndex]};
+
 	/* retrieve the correct queue */
 	uint32_t q_index = VKManager::GetQueueIndex(context, Ping::QueueType::Graphics);
 
 	context.queues[q_index].queue.submit(submitInfo, *drawFence);
 }
 
-void Backend::VulkanCommandBuffer::EndRendering() const
-{
-	commandBuffer.endRendering();
-}
+void Backend::VulkanCommandBuffer::EndRendering() const { commandBuffer.endRendering(); }
 
-void Backend::VulkanCommandBuffer::End() const
-{
-	commandBuffer.end();
-}
+void Backend::VulkanCommandBuffer::End() const { commandBuffer.end(); }

@@ -1,94 +1,216 @@
 #pragma once
 #include "Logger/Logger.h"
-#include "VulkanContext.h"
+#include "Ping/CommandBuffer.h"
+#include "Ping/Pipeline.h"
 #include "VKUtil.h"
+#include "VulkanBuffer.h"
+#include "VulkanCommandBuffer.h"
+#include "VulkanCommandPool.h"
 #include "VulkanCommon.h"
+#include "VulkanContext.h"
+#include "VulkanPipeline.h"
+#include "VulkanQueue.h"
+#include "VulkanSwapChain.h"
+#include "Window/Window.h"
 #include <array>
 #include <vector>
-#include "Window/Window.h"
-#include "VulkanContext.h"
-#include "VulkanSwapChain.h"
-#include "VulkanPipeline.h"
-#include "Ping/Pipeline.h"
-#include "VulkanCommandPool.h"
-#include "VulkanCommandBuffer.h"
-#include "VulkanQueue.h"
-#include "Ping/CommandBuffer.h"
 
-namespace Backend {
+namespace Backend
+{
 
-	class VKManager {
-	public:
-		static void Init();
-		static void Shutdown();
+/**
+ * Static-method class holding all raw Vulkan logic for the backend: instance/device creation,
+ * swapchain/pipeline/command-buffer/buffer creation, memory type selection, layout transitions, and
+ * dynamic rendering setup. Every `Vulkan*` RAII class is built by (and only by) one of these methods.
+ *
+ * @note Not instantiable in practice: every member is `static`. `Init` must be called once before
+ * any other method (asserted in `CreateVulkanContext`).
+ */
+class VKManager
+{
+public:
+	/**
+	 * Initializes GLFW and the shared `vk::raii::Context`. Idempotent — safe to call more than once
+	 * (e.g. once explicitly via `Ping::Init` and again in `Ping::Device`'s constructor).
+	 */
+	static void Init();
 
-		static VulkanContext CreateVulkanContext(
-			const Window&								window,
-			const std::vector<VKQueueFamilyProperties>& wanted_queues,
-			const std::vector<const char*>&				wanted_extensions,
-			const std::vector<const char*>&				wanted_validation_layers);
+	/** Terminates GLFW. Call once after all `Ping`/backend resources have been destroyed. */
+	static void Shutdown();
 
-		static VulkanSwapChain CreateSwapChain(
-			const VulkanContext &context,
-			const Window		&window,
-			uint32_t			frames_in_flight);
+	/**
+	 * Creates the Vulkan instance, surface, physical/logical device, and one queue + command pool
+	 * per entry in `wanted_queues`.
+	 *
+	 * @throws std::runtime_error if no suitable physical device is found, if a requested queue
+	 * family isn't available, or if a requested graphics queue lacks presentation support.
+	 */
+	static VulkanContext CreateVulkanContext(
+		const Window&								window,
+		const std::vector<VKQueueFamilyProperties>& wanted_queues,
+		const std::vector<const char*>&				wanted_extensions,
+		const std::vector<const char*>&				wanted_validation_layers);
 
-		static VulkanPipeline CreatePipeline(
-			const VulkanContext&				context,
-			const Ping::PipelineSpecification&	specification,
-			const VulkanSwapChain&				swapchain);
+	/**
+	 * Creates a swapchain sized to `window`'s current framebuffer, preferring `eB8G8R8A8Srgb`/`eSrgbNonlinear`
+	 * and `eMailbox` present mode (falling back to the first available format and `eFifo` respectively).
+	 */
+	static VulkanSwapChain
+	CreateSwapChain(const VulkanContext& context, const Window& window, uint32_t frames_in_flight);
 
-		static VulkanCommandBuffers CreateCommandBuffers(
-			const VulkanContext&	context,
-			Ping::QueueType			type,
-			uint32_t				num_buffers);
+	/**
+	 * Builds a graphics pipeline using dynamic rendering (no `vk::RenderPass`) and dynamic
+	 * viewport/scissor, loading `specification.shaderFilePath` as a SPIR-V module with `vertMain`/`fragMain`
+	 * entry points and alpha blending enabled.
+	 */
+	static VulkanPipeline CreatePipeline(
+		const VulkanContext&			   context,
+		const Ping::PipelineSpecification& specification,
+		const VulkanSwapChain&			   swapchain);
 
-		static void transitionImageLayout(
-			VulkanCommandBuffer					&cmd_buffer,
-			VulkanSwapChain						&swapchain,
-			uint32_t							imageIndex,
-			const Ping::ImageLayoutTransition	&layout_transition);
+	/**
+	 * Allocates `num_buffers` primary command buffers from `context`'s pool matching `type`, each
+	 * paired with a fence created already signaled.
+	 */
+	static VulkanCommandBuffers
+	CreateCommandBuffers(const VulkanContext& context, Ping::QueueType type, uint32_t num_buffers);
 
-		static void beginRendering(
-			VulkanCommandBuffer& cmd_buffer,
-			VulkanSwapChain& swapchain,
-			uint32_t							imageIndex);
+	/**
+	 * Creates a buffer of `size` bytes with `usage`, backed by memory satisfying `property`; maps the
+	 * memory immediately if `property` includes `MemoryProperty::HostVisible`.
+	 */
+	static VulkanBuffer
+	CreateBuffer(const VulkanContext& context, size_t size, Ping::BufferUsage usage, Ping::MemoryProperty property);
 
-		static uint32_t GetQueueIndex(
-			const VulkanContext& context,
-			Ping::QueueType wanted_queue_type
-		);
+	/** Flushes the full mapped range of `buffer`'s memory so host writes become visible to the device. */
+	static void FlushMappedMemoryRanges(const VulkanContext& context, const VulkanBuffer& buffer);
 
-		static void WaitForCommands(const vk::raii::Device& device);
-	private:
-		static vk::raii::Instance
-			CreateInstance(const std::vector<const char*>& wanted_extensions,
-				const std::vector<const char*>& wanted_validation_layers);
-		static vk::raii::SurfaceKHR CreateSurface(vk::raii::Instance& instance, const Window& window);
-		static vk::raii::PhysicalDevice SelectBestDevice(vk::raii::Instance& instance,
-			vk::raii::SurfaceKHR& surface);
-		static void AddRequiredExtensions(VKExtensions& extensions);
-		static void CreateCommandPools(const vk::raii::Device &device,
-			const vk::raii::PhysicalDevice phys_device,
-			const std::vector<VKQueueFamilyProperties>& wanted_queues,
-			std::vector<VulkanCommandPool>& command_pools);
-		static vk::raii::DebugUtilsMessengerEXT SetupDebugCallback(vk::raii::Instance& instance, PFN_vkDebugUtilsMessengerCallbackEXT user_callback);
-		static bool IsDeviceSuitable(const vk::raii::PhysicalDevice& device);
-		static vk::raii::Device CreateLogicalDevice(const vk::raii::PhysicalDevice& phys_device,
-			VulkanQueues& queues,
-			const std::vector<VKQueueFamilyProperties>& wanted_queues,
-			const std::vector<const char*>& wanted_extensions,
-			vk::raii::SurfaceKHR& surface);
-		static vk::SurfaceFormatKHR SelectSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats);
-		static vk::PresentModeKHR SelectPresentMode(const std::vector<vk::PresentModeKHR>& availablePresentModes);
-		static vk::Extent2D SelectSwapExtent(const vk::SurfaceCapabilitiesKHR& capabilities, const Window& window);
-		static uint32_t chooseSwapMinImageCount(vk::SurfaceCapabilitiesKHR const& surfaceCapabilities);
-		static std::vector<char> readFile(const std::string& filename);
-	private:
-		static bool is_initialized;
-		static std::unique_ptr<vk::raii::Context> context;
-		static Mupfel::Logger::SafeLoggerPtr logger;
-		static std::array<char*, 32> extension_array;
-	};
+	/**
+	 * Records a `vk::ImageMemoryBarrier2`-based transition of `swapchain`'s image at `imageIndex`, per
+	 * `layout_transition`.
+	 */
+	static void transitionImageLayout(
+		VulkanCommandBuffer&			   cmd_buffer,
+		VulkanSwapChain&				   swapchain,
+		uint32_t						   imageIndex,
+		const Ping::ImageLayoutTransition& layout_transition);
 
-}
+	/**
+	 * Begins dynamic rendering into `swapchain`'s image view at `imageIndex` (clearing to opaque black)
+	 * and sets the viewport/scissor to the swapchain's full extent.
+	 */
+	static void beginRendering(VulkanCommandBuffer& cmd_buffer, VulkanSwapChain& swapchain, uint32_t imageIndex);
+
+	/**
+	 * @throws std::runtime_error if `context` has no queue of type `wanted_queue_type`.
+	 * @return Index into `context.queues` of the first queue matching `wanted_queue_type`.
+	 */
+	static uint32_t GetQueueIndex(const VulkanContext& context, Ping::QueueType wanted_queue_type);
+
+	/** Blocks until `device` has completed all previously submitted work (`vkDeviceWaitIdle`). */
+	static void WaitForCommands(const vk::raii::Device& device);
+
+private:
+	/**
+	 * Creates the `vk::Instance`, enabling `wanted_extensions`/`wanted_validation_layers` (each
+	 * filtered to what's actually supported) plus whatever `AddRequiredExtensions` adds. In debug
+	 * builds (`!NDEBUG`), also enables `VK_EXT_debug_utils` and installs `debugCallback` via
+	 * `SetupDebugCallback` the first time an instance is created.
+	 */
+	static vk::raii::Instance CreateInstance(
+		const std::vector<const char*>& wanted_extensions,
+		const std::vector<const char*>& wanted_validation_layers);
+
+	/**
+	 * Creates the window's presentation surface via `glfwCreateWindowSurface`.
+	 * @throws std::runtime_error if GLFW fails to create the surface.
+	 */
+	static vk::raii::SurfaceKHR CreateSurface(vk::raii::Instance& instance, const Window& window);
+
+	/**
+	 * Picks a physical device via `IsDeviceSuitable`. If multiple devices are suitable, the last one
+	 * enumerated is returned — there is currently no ranking beyond having a graphics queue family.
+	 * @throws std::runtime_error if no device is suitable.
+	 */
+	static vk::raii::PhysicalDevice SelectBestDevice(vk::raii::Instance& instance, vk::raii::SurfaceKHR& surface);
+
+	/** Adds the instance extensions GLFW requires for window surface creation on the current platform. */
+	static void AddRequiredExtensions(VKExtensions& extensions);
+
+	/**
+	 * Creates one command pool per entry in `wanted_queues` (resettable-command-buffer flag set),
+	 * tagged with the matching `Ping::QueueType`.
+	 * @throws std::runtime_error if a queue family index can't be resolved for one of `wanted_queues`.
+	 */
+	static void CreateCommandPools(
+		const vk::raii::Device&						device,
+		const vk::raii::PhysicalDevice				phys_device,
+		const std::vector<VKQueueFamilyProperties>& wanted_queues,
+		std::vector<VulkanCommandPool>&				command_pools);
+
+	/**
+	 * Installs `user_callback` as a debug messenger for warning/error validation and general/performance
+	 * messages. A no-op returning a null handle in release (`NDEBUG`) builds.
+	 */
+	static vk::raii::DebugUtilsMessengerEXT
+	SetupDebugCallback(vk::raii::Instance& instance, PFN_vkDebugUtilsMessengerCallbackEXT user_callback);
+
+	/** Whether `device` has at least one queue family, and at least one of them supports graphics. */
+	static bool IsDeviceSuitable(const vk::raii::PhysicalDevice& device);
+
+	/**
+	 * Creates the logical device and one `vk::raii::Queue` per entry in `wanted_queues`, appended to `queues`.
+	 * @throws std::runtime_error if a requested queue family can't be found, or a requested graphics
+	 * queue doesn't support presentation to `surface`.
+	 */
+	static vk::raii::Device CreateLogicalDevice(
+		const vk::raii::PhysicalDevice&				phys_device,
+		VulkanQueues&								queues,
+		const std::vector<VKQueueFamilyProperties>& wanted_queues,
+		const std::vector<const char*>&				wanted_extensions,
+		vk::raii::SurfaceKHR&						surface);
+
+	/** Prefers `eB8G8R8A8Srgb`/`eSrgbNonlinear` from `availableFormats`, falling back to the first available format. */
+	static vk::SurfaceFormatKHR SelectSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats);
+
+	/** Prefers `eMailbox` from `availablePresentModes`, falling back to `eFifo` (which must always be available). */
+	static vk::PresentModeKHR SelectPresentMode(const std::vector<vk::PresentModeKHR>& availablePresentModes);
+
+	/**
+	 * Returns `capabilities.currentExtent` if it's well-defined, otherwise clamps `window`'s current
+	 * framebuffer size to `capabilities`' min/max extent.
+	 */
+	static vk::Extent2D SelectSwapExtent(const vk::SurfaceCapabilitiesKHR& capabilities, const Window& window);
+
+	/**
+	 * Requests at least 3 swapchain images (for `frames_in_flight`-independent triple buffering),
+	 * clamped to `surfaceCapabilities`' maximum if it has one.
+	 */
+	static uint32_t chooseSwapMinImageCount(vk::SurfaceCapabilitiesKHR const& surfaceCapabilities);
+
+	/**
+	 * Reads the entire binary contents of `filename` (e.g. a compiled SPIR-V shader).
+	 * @throws std::runtime_error if the file can't be opened.
+	 */
+	static std::vector<char> readFile(const std::string& filename);
+
+	/**
+	 * Finds a memory type index among `phys_devicee`'s heaps whose bit is set in `type_filter` (a
+	 * `VkMemoryRequirements::memoryTypeBits` mask) and which supports all flags in `property`.
+	 * @throws std::runtime_error if no matching memory type exists.
+	 */
+	static uint32_t
+	findMemoryType(const vk::raii::PhysicalDevice& phys_devicee, uint32_t type_filter, Ping::MemoryProperty property);
+
+private:
+	/** Set by `Init`; guards it from running twice. */
+	static bool is_initialized;
+	/** The shared `vk::raii::Context`, created by `Init`. */
+	static std::unique_ptr<vk::raii::Context> vk_context;
+	/** Logger created by `Init`, used throughout `VKManager`. */
+	static Mupfel::Logger::SafeLoggerPtr logger;
+	/** Currently unused. */
+	static std::array<char*, 32> extension_array;
+};
+
+} // namespace Backend

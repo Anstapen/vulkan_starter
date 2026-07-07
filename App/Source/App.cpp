@@ -1,7 +1,7 @@
-#include <stdexcept>
-#include <cstdlib>
-#include "Logger/Logger.h"
 #include "Application/Application.h"
+#include "Logger/Logger.h"
+#include <cstdlib>
+#include <stdexcept>
 
 using namespace Mupfel;
 
@@ -16,7 +16,7 @@ int main()
 		Application app("Vulkan Playground");
 		app.Run();
 	}
-	catch (const std::exception &e)
+	catch (const std::exception& e)
 	{
 		main_logger->error("Exception: {}", e.what());
 		return EXIT_FAILURE;

@@ -2,10 +2,14 @@
 
 vk::ImageLayout Backend::ToVulkan(Ping::ImageLayout layout)
 {
-	switch (layout) {
-	case Ping::ImageLayout::Undefined:              return vk::ImageLayout::eUndefined;
-	case Ping::ImageLayout::ColorAttachmentOptimal: return vk::ImageLayout::eColorAttachmentOptimal;
-	case Ping::ImageLayout::PresentSource:          return vk::ImageLayout::ePresentSrcKHR;
+	switch (layout)
+	{
+	case Ping::ImageLayout::Undefined:
+		return vk::ImageLayout::eUndefined;
+	case Ping::ImageLayout::ColorAttachmentOptimal:
+		return vk::ImageLayout::eColorAttachmentOptimal;
+	case Ping::ImageLayout::PresentSource:
+		return vk::ImageLayout::ePresentSrcKHR;
 	}
 	throw std::runtime_error("Unhandled Ping::ImageLayout");
 }
@@ -26,4 +30,42 @@ vk::PipelineStageFlags2 Backend::ToVulkan(Ping::PipelineStage stage)
 	if (Ping::HasFlag(stage, Ping::PipelineStage::BottomOfPipe))
 		result |= vk::PipelineStageFlagBits2::eBottomOfPipe;
 	return result;
+}
+
+vk::BufferUsageFlags Backend::ToVulkan(Ping::BufferUsage usage)
+{
+	vk::BufferUsageFlags result{};
+	if (Ping::HasFlag(usage, Ping::BufferUsage::TransferDst))
+		result |= vk::BufferUsageFlagBits::eTransferDst;
+	if (Ping::HasFlag(usage, Ping::BufferUsage::TransferSrc))
+		result |= vk::BufferUsageFlagBits::eTransferSrc;
+	if (Ping::HasFlag(usage, Ping::BufferUsage::VertexBuffer))
+		result |= vk::BufferUsageFlagBits::eVertexBuffer;
+	return result;
+}
+
+vk::MemoryPropertyFlags Backend::ToVulkan(Ping::MemoryProperty property)
+{
+	vk::MemoryPropertyFlags result{};
+	if (Ping::HasFlag(property, Ping::MemoryProperty::DeviceLocal))
+		result |= vk::MemoryPropertyFlagBits::eDeviceLocal;
+	if (Ping::HasFlag(property, Ping::MemoryProperty::HostVisible))
+		result |= vk::MemoryPropertyFlagBits::eHostVisible;
+	if (Ping::HasFlag(property, Ping::MemoryProperty::HostCoherent))
+		result |= vk::MemoryPropertyFlagBits::eHostCoherent;
+	return result;
+}
+
+vk::Format Backend::ToVulkan(Ping::VertexFormat format)
+{
+	switch (format)
+	{
+	case Ping::VertexFormat::Float32x2:
+		return vk::Format::eR32G32Sfloat;
+	case Ping::VertexFormat::Float32x3:
+		return vk::Format::eR32G32B32Sfloat;
+	case Ping::VertexFormat::Float32x4:
+		return vk::Format::eR32G32B32A32Sfloat;
+	}
+	assert(false && "Unhandled Ping::VertexFormat");
 }
