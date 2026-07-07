@@ -178,5 +178,12 @@ bool Backend::VKQueueFamilyProperties::CheckSurfaceSupport(
 	const vk::raii::PhysicalDevice& device,
 	const vk::raii::SurfaceKHR&		surface) const
 {
-	return device.getSurfaceSupportKHR(GetQueueIndexFromPhysicalDevice(device).value(), *surface);
+	auto queue_index = GetQueueIndexFromPhysicalDevice(device);
+
+	if (!queue_index.has_value())
+	{
+		return false;
+	}
+
+	return device.getSurfaceSupportKHR(queue_index.value(), *surface);
 }

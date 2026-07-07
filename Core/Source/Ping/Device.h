@@ -66,12 +66,6 @@ public:
 	/** Blocks until the device has completed all previously submitted work. */
 	void WaitForCommands() const;
 
-	/**
-	 * Flushes host writes to `buffer` so they are visible to the device (needed unless the buffer
-	 * was created with `MemoryProperty::HostCoherent`).
-	 */
-	void Flush(const Buffer& buffer) const;
-
 private:
 	/** Owning pointer to the Vulkan instance/device/queues. */
 	std::unique_ptr<Backend::VulkanContext> vulkanContextPtr;

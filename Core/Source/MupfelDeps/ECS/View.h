@@ -42,9 +42,12 @@ public:
 		size_t index;
 		/** Combined signature every yielded entity must satisfy. */
 		Entity::Signature required_signature;
+		/** Cached component array of first component. */
+		CPUComponentArray<BaseComponent>& base_component_array;
 
 		/** Starts at slot `idx` and immediately skips forward past any entity missing a required component. */
-		Iterator(Registry& reg, uint64_t req, size_t idx) : registry(reg), index(idx), required_signature(req)
+		Iterator(Registry& reg, uint64_t req, size_t idx, CPUComponentArray<BaseComponent>& in_base_component_array)
+			: registry(reg), index(idx), required_signature(req), base_component_array(in_base_component_array)
 		{
 			SkipInvalid();
 		}
@@ -52,10 +55,9 @@ public:
 		/** Advances `index` until it points at an entity satisfying `required_signature`, or past the end. */
 		void SkipInvalid()
 		{
-			auto& comp_array = registry.GetComponentArray<BaseComponent>();
-			while (index < comp_array.Size())
+			while (index < base_component_array.Size())
 			{
-				Entity			  e{comp_array.dense[index]};
+				Entity			  e{base_component_array.dense[index]};
 				Entity::Signature sig = registry.GetSignature(e.Index());
 
 				if ((sig & required_signature) == required_signature)
@@ -78,10 +80,9 @@ public:
 		/** @return `{entity, Components&...}` for the entity at the current slot. */
 		auto operator*()
 		{
-			auto&  comp_array = registry.GetComponentArray<BaseComponent>();
-			Entity e{comp_array.dense[index]};
+			Entity e{base_component_array.dense[index]};
 
-			FirstComponent& first_ref = comp_array.components[index];
+			FirstComponent& first_ref = base_component_array.components[index];
 
 			// Fold-Expression: tuple of references erzeugen
 			auto rest_of_refs = std::tuple<Components&...>(registry.GetComponent<Components>(e)...);
@@ -92,7 +93,7 @@ public:
 
 public:
 	/** Iterator at the first matching entity (or `end()` if there are none). */
-	Iterator begin() { return Iterator(reg, required_signature, 0); }
+	Iterator begin() { return Iterator(reg, required_signature, 0, reg.GetComponentArray<BaseComponent>()); }
 
 	/**
 	 * @note Recomputes `BaseComponent`'s current size — only stable as long as the array isn't
@@ -101,7 +102,7 @@ public:
 	Iterator end()
 	{
 		auto& array = reg.GetComponentArray<BaseComponent>();
-		return Iterator(reg, required_signature, array.Size());
+		return Iterator(reg, required_signature, array.Size(), reg.GetComponentArray<BaseComponent>());
 	}
 
 private:

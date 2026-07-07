@@ -34,15 +34,14 @@ public:
 	vk::raii::Instance instance;
 	/** The physical device selected by `VKManager::SelectBestDevice`. */
 	vk::raii::PhysicalDevice phys_device;
-	/** Presentation surface for the window this context was created for. */
-	vk::raii::SurfaceKHR surface;
 	/** The logical device. */
 	vk::raii::Device device;
 	/** Queues created for this device, one per requested queue family. */
 	std::vector<VulkanQueue> queues;
-	std::vector<VulkanCommandPool>
-		/** Command pools created for this device, one per requested queue family. */
-		command_pools;
+	/** Presentation surface for the window this context was created for. */
+	vk::raii::SurfaceKHR surface;
+	/** Command pools created for this device, one per requested queue family. */
+	std::vector<VulkanCommandPool> command_pools;
 
 private:
 	VulkanContext();

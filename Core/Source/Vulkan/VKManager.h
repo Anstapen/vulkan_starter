@@ -82,9 +82,6 @@ public:
 	static VulkanBuffer
 	CreateBuffer(const VulkanContext& context, size_t size, Ping::BufferUsage usage, Ping::MemoryProperty property);
 
-	/** Flushes the full mapped range of `buffer`'s memory so host writes become visible to the device. */
-	static void FlushMappedMemoryRanges(const VulkanContext& context, const VulkanBuffer& buffer);
-
 	/**
 	 * Records a `vk::ImageMemoryBarrier2`-based transition of `swapchain`'s image at `imageIndex`, per
 	 * `layout_transition`.

@@ -19,8 +19,8 @@ void Mupfel::Renderer::Init(const Ping::Device& device, const Window& window)
 	/* We need one vertex buffer for each frame in flight */
 	for (uint32_t i = 0; i < frames_in_flight; i++)
 	{
-		vertex_buffers.emplace_back(std::move(device.CreateBuffer(
-			sizeof(Transform) * 100, Ping::BufferUsage::VertexBuffer, Ping::MemoryProperty::HostVisible)));
+		vertex_buffers.emplace_back(device.CreateBuffer(
+			sizeof(Transform) * 100, Ping::BufferUsage::VertexBuffer, Ping::MemoryProperty::HostVisible | Ping::MemoryProperty::HostCoherent));
 	}
 }
 
@@ -38,9 +38,6 @@ void Mupfel::Renderer::SyncRenderableObjects(World& world, const Ping::Device& d
 
 		mapped_ptr[write_index++] = transform;
 	}
-
-	/* data is now moved into the GPU buffers */
-	device.Flush(vertex_buffers[frame_index]);
 }
 
 void Mupfel::Renderer::RenderNextFrame(World& world, const Ping::Device& device, const Window& window)

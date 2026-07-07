@@ -3,8 +3,9 @@
 using namespace Backend;
 
 VulkanContext::VulkanContext(VulkanContext&& other) noexcept
-	: instance(std::move(other.instance)), device(std::move(other.device)), queues(std::move(other.queues)),
-	  surface(std::move(other.surface)), phys_device(std::move(other.phys_device)),
+	: instance(std::move(other.instance)), phys_device(std::move(other.phys_device)), device(std::move(other.device)),
+	  queues(std::move(other.queues)),
+	  surface(std::move(other.surface)),
 	  command_pools(std::move(other.command_pools))
 {
 }
@@ -12,10 +13,10 @@ VulkanContext::VulkanContext(VulkanContext&& other) noexcept
 VulkanContext& VulkanContext::operator=(VulkanContext&& other) noexcept
 {
 	instance = std::move(other.instance);
+	phys_device = std::move(other.phys_device);
 	device = std::move(other.device);
 	queues = std::move(other.queues);
 	surface = std::move(other.surface);
-	phys_device = std::move(other.phys_device);
 	command_pools = std::move(other.command_pools);
 	return *this;
 }

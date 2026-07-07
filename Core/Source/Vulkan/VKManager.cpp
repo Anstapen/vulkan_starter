@@ -259,17 +259,10 @@ VulkanBuffer Backend::VKManager::CreateBuffer(
 
 	if (Ping::HasFlag(property, Ping::MemoryProperty::HostVisible))
 	{
-		mapped_memory = buffer_memory.mapMemory(0, bufferInfo.size);
+		mapped_memory = buffer_memory.mapMemory(0, VK_WHOLE_SIZE);
 	}
 
-	return VulkanBuffer(std::move(buffer), std::move(buffer_memory), mapped_memory, memRequirements.size);
-}
-
-void Backend::VKManager::FlushMappedMemoryRanges(const VulkanContext& context, const VulkanBuffer& buffer)
-{
-	vk::MappedMemoryRange range{.memory = buffer.memory, .offset = 0, .size = buffer.size};
-	context.device.flushMappedMemoryRanges({range});
-	// context.device.invalidateMappedMemoryRanges({range});
+	return VulkanBuffer(std::move(buffer), std::move(buffer_memory), mapped_memory, bufferInfo.size);
 }
 
 void Backend::VKManager::transitionImageLayout(
@@ -592,11 +585,6 @@ vk::raii::Device VKManager::CreateLogicalDevice(
 		current_queue_create_info.pQueuePriorities = &queue_priorities[i];
 		current_queue_create_info.queueCount = wanted_queues[i].wanted_queue_instances;
 		current_queue_create_info.queueFamilyIndex = q_index.value();
-
-		if (i != 0 && i < (wanted_queues.size() - 1))
-		{
-			current_queue_create_info.pNext = &queue_create_infos[i + 1];
-		}
 	}
 
 	/* Select device features */

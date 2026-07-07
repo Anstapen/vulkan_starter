@@ -14,6 +14,8 @@ Mupfel::Application::Application(const std::string& in_name) : name(in_name), re
 Mupfel::Application::~Application()
 {
 	device.value().WaitForCommands();
+
+	/* TODO: there may be GLFW services called after glfwTerminate has been called... */
 	Ping::Shutdown();
 }
 

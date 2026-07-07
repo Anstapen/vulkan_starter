@@ -86,8 +86,3 @@ Buffer Ping::Device::CreateBuffer(size_t size, BufferUsage usage, MemoryProperty
 }
 
 void Ping::Device::WaitForCommands() const { Backend::VKManager::WaitForCommands(vulkanContextPtr->device); }
-
-void Ping::Device::Flush(const Buffer& buffer) const
-{
-	Backend::VKManager::FlushMappedMemoryRanges(*vulkanContextPtr.get(), *buffer.vulkanBufferPtr.get());
-}
