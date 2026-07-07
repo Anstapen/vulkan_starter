@@ -13,6 +13,7 @@ project "App"
 
 	  -- Include Core
 	  "../Core/Source",
+      "../Core/Source/MupfelDeps",
        "../Vendor/Sources/glfw-3.4.bin.WIN64/include",
        vulkan_sdk_path .. "/Include",
        "../" .. spdlog_dir .. "/include"
