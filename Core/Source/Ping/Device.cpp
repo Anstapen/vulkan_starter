@@ -20,17 +20,25 @@ Ping::Device::Device(const DeviceSpecification& specification, const Window& win
 	Backend::VKManager::Init();
 
 	/* define the wanted queues */
-	std::vector<Backend::VKQueueFamilyProperties> wanted_queues = {
-		{vk::QueueFlagBits::eCompute, 1}, {vk::QueueFlagBits::eGraphics, 1}, {vk::QueueFlagBits::eTransfer, 1}};
+	std::vector<Backend::VKQueueRequest> wanted_queues = {
+		{Ping::QueueType::Graphics, /*prefer_dedicated_family=*/false},
+		{Ping::QueueType::Compute, /*prefer_dedicated_family=*/true},
+		{Ping::QueueType::Transfer, /*prefer_dedicated_family=*/true},
+	};
 
 	/* define the wanted extensions */
-	std::vector<const char*> wanted_extensions = {vk::KHRSwapchainExtensionName};
+	std::vector<const char*> wanted_device_extensions = {vk::KHRSwapchainExtensionName, vk::KHRSynchronization2ExtensionName, vk::EXTExtendedDynamicStateExtensionName};
 
 	/* define the wanted validation layers */
-	std::vector<const char*> wanted_validation_layers = {};
+	#ifndef NDEBUG
+	std::vector<const char*> wanted_validation_layers = {"VK_LAYER_KHRONOS_validation"};
+	#else
+		std::vector<const char*> wanted_validation_layers = {};
+	#endif
+	
 
 	vulkanContextPtr = std::make_unique<Backend::VulkanContext>(
-		Backend::VKManager::CreateVulkanContext(window, wanted_queues, wanted_extensions, wanted_validation_layers));
+		Backend::VKManager::CreateVulkanContext(window, wanted_queues, {}, wanted_device_extensions, wanted_validation_layers));
 }
 
 Ping::Device::Device(Device&& other) : vulkanContextPtr(std::move(other.vulkanContextPtr)) {}

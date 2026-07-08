@@ -1,5 +1,6 @@
 #include "Buffer.h"
 #include "Vulkan/VulkanBuffer.h"
+#include "Device.h"
 
 using namespace Ping;
 
@@ -19,5 +20,10 @@ Buffer& Ping::Buffer::operator=(Buffer&& other) noexcept
 }
 
 uint64_t Ping::Buffer::Size() const { return vulkanBufferPtr->Size(); }
+
+void Ping::Buffer::Resize(const Device& device, uint64_t new_size)
+{
+	vulkanBufferPtr->Resize(*device.vulkanContextPtr.get(), new_size);
+}
 
 void* Ping::Buffer::GetMappedPtr() { return vulkanBufferPtr->GetMappedPtr(); }

@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <vector>
+#include <bit>
 
 Backend::VKExtensions::~VKExtensions()
 {
@@ -155,35 +156,83 @@ std::vector<VkLayerProperties> Backend::VKValidationLayers::GetAvailableValidati
 	return available_layers;
 }
 
-std::optional<uint32_t>
-Backend::VKQueueFamilyProperties::GetQueueIndexFromPhysicalDevice(const vk::raii::PhysicalDevice& device) const
+
+vk::QueueFlags Backend::VKQueueFamilyAllocator::RequiredFlags(Ping::QueueType type)
 {
-	auto queue_family_properties = device.getQueueFamilyProperties();
-
-	std::optional<uint32_t> index;
-	for (uint32_t i = 0; i < queue_family_properties.size(); i++)
+	switch (type)
 	{
-		if (((queue_family_properties[i].queueFlags & wanted_flags) == wanted_flags) &&
-			queue_family_properties[i].queueCount >= wanted_queue_instances)
-		{
-			index = i;
-			break;
-		}
+	case Ping::QueueType::Graphics:
+		return vk::QueueFlagBits::eGraphics;
+	case Ping::QueueType::Compute:
+		return vk::QueueFlagBits::eCompute;
+	case Ping::QueueType::Transfer:
+		return vk::QueueFlagBits::eTransfer;
+	default:
+		throw std::runtime_error("No queue flags defined for this QueueType!");
 	}
-
-	return index;
 }
 
-bool Backend::VKQueueFamilyProperties::CheckSurfaceSupport(
-	const vk::raii::PhysicalDevice& device,
-	const vk::raii::SurfaceKHR&		surface) const
+std::vector<Backend::VKResolvedQueue> Backend::VKQueueFamilyAllocator::Allocate(
+	const vk::raii::PhysicalDevice&	   phys_device,
+	const std::vector<VKQueueRequest>& requests)
 {
-	auto queue_index = GetQueueIndexFromPhysicalDevice(device);
+	std::vector<vk::QueueFamilyProperties> families = phys_device.getQueueFamilyProperties();
+	std::vector<uint32_t>				   claimed(families.size(), 0); // queue slots already handed out, per family
 
-	if (!queue_index.has_value())
+	/* Fewer capability bits == more "dedicated" a family is: a transfer-only family scores 1,
+	 * a combined graphics+compute+transfer family scores 3. Picking the lowest-scoring match
+	 * is how a dedicated request lands on a genuinely separate hardware queue when one exists,
+	 * without hardcoding "must lack eGraphics" (which wouldn't generalize to future roles). */
+	auto specializationScore = [](vk::QueueFlags flags)
+	{ return std::popcount(static_cast<uint32_t>(static_cast<VkQueueFlags>(flags))); };
+
+	auto findBestFamily = [&](vk::QueueFlags required, bool requireSpareCapacity) -> std::optional<uint32_t>
 	{
-		return false;
-	}
+		std::optional<uint32_t> best;
+		for (uint32_t i = 0; i < families.size(); i++)
+		{
+			if ((families[i].queueFlags & required) != required)
+				continue;
+			if (requireSpareCapacity && claimed[i] >= families[i].queueCount)
+				continue;
+			if (!best.has_value() ||
+				specializationScore(families[i].queueFlags) < specializationScore(families[*best].queueFlags))
+			{
+				best = i;
+			}
+		}
+		return best;
+	};
 
-	return device.getSurfaceSupportKHR(queue_index.value(), *surface);
+	auto claimSlot = [&](uint32_t family) -> uint32_t
+	{
+		uint32_t queueIndex = std::min(claimed[family], families[family].queueCount - 1);
+		claimed[family] = queueIndex + 1;
+		return queueIndex;
+	};
+
+	auto resolveOne = [&](const VKQueueRequest& request) -> VKResolvedQueue
+	{
+		vk::QueueFlags			required = RequiredFlags(request.type);
+		std::optional<uint32_t> family = findBestFamily(required, /*requireSpareCapacity=*/true);
+		if (!family.has_value())
+			family = findBestFamily(required, /*requireSpareCapacity=*/false); // share, nothing free left
+		if (!family.has_value())
+			throw std::runtime_error("No queue family satisfies a requested queue's flags!");
+		return {request.type, *family, claimSlot(*family)};
+	};
+
+	std::vector<VKResolvedQueue> resolved(requests.size());
+
+	/* Two passes: dedicated requests get first pick of scarce specialized families, before a
+	 * "whatever's available" request can greedily consume the only transfer-only family etc. */
+	for (uint32_t i = 0; i < requests.size(); i++)
+		if (requests[i].prefer_dedicated_family)
+			resolved[i] = resolveOne(requests[i]);
+
+	for (uint32_t i = 0; i < requests.size(); i++)
+		if (!requests[i].prefer_dedicated_family)
+			resolved[i] = resolveOne(requests[i]);
+
+	return resolved;
 }

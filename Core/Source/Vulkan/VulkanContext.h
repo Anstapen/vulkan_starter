@@ -42,6 +42,8 @@ public:
 	vk::raii::SurfaceKHR surface;
 	/** Command pools created for this device, one per requested queue family. */
 	std::vector<VulkanCommandPool> command_pools;
+	/** Debug utils object that was used to set up the debug callback. */
+	vk::raii::DebugUtilsMessengerEXT debugMessenger;
 
 private:
 	VulkanContext();
@@ -51,11 +53,12 @@ private:
 	 * command pools. Used internally by `VKManager::CreateVulkanContext`.
 	 */
 	VulkanContext(
-		vk::raii::Instance&&		   in_instance,
-		vk::raii::PhysicalDevice	   in_phys_device,
-		vk::raii::Device&&			   in_device,
-		std::vector<VulkanQueue>	   in_queues,
-		vk::raii::SurfaceKHR		   in_surface,
-		std::vector<VulkanCommandPool> in_command_pools);
+		vk::raii::Instance&&		     in_instance,
+		vk::raii::PhysicalDevice	     in_phys_device,
+		vk::raii::Device&&			     in_device,
+		std::vector<VulkanQueue>	     in_queues,
+		vk::raii::SurfaceKHR		     in_surface,
+		std::vector<VulkanCommandPool>	 in_command_pools,
+		vk::raii::DebugUtilsMessengerEXT in_debug_messenger);
 };
 } // namespace Backend

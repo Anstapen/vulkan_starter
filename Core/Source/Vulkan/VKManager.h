@@ -47,8 +47,9 @@ public:
 	 */
 	static VulkanContext CreateVulkanContext(
 		const Window&								window,
-		const std::vector<VKQueueFamilyProperties>& wanted_queues,
-		const std::vector<const char*>&				wanted_extensions,
+		const std::vector<VKQueueRequest>&          wanted_queues,
+		const std::vector<const char*>&				wanted_instance_extensions,
+		const std::vector<const char*>&				wanted_device_extensions,
 		const std::vector<const char*>&				wanted_validation_layers);
 
 	/**
@@ -141,8 +142,7 @@ private:
 	 */
 	static void CreateCommandPools(
 		const vk::raii::Device&						device,
-		const vk::raii::PhysicalDevice				phys_device,
-		const std::vector<VKQueueFamilyProperties>& wanted_queues,
+		const std::vector<VKResolvedQueue>&         resolved_queues,
 		std::vector<VulkanCommandPool>&				command_pools);
 
 	/**
@@ -163,8 +163,8 @@ private:
 	static vk::raii::Device CreateLogicalDevice(
 		const vk::raii::PhysicalDevice&				phys_device,
 		VulkanQueues&								queues,
-		const std::vector<VKQueueFamilyProperties>& wanted_queues,
-		const std::vector<const char*>&				wanted_extensions,
+		const std::vector<VKResolvedQueue>&         wanted_queues,
+		const std::vector<const char*>&				wanted_device_extensions,
 		vk::raii::SurfaceKHR&						surface);
 
 	/** Prefers `eB8G8R8A8Srgb`/`eSrgbNonlinear` from `availableFormats`, falling back to the first available format. */

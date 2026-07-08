@@ -38,6 +38,11 @@ public:
 	uint64_t Size() const;
 
 	/**
+	 * Resize the buffer to \a new_size.
+	 */
+	void Resize(const Device& device, uint64_t new_size);
+
+	/**
 	 * Returns a pointer to the buffer's persistently-mapped host memory.
 	 *
 	 * @warning Only valid if the buffer was created with `MemoryProperty::HostVisible`; writes are

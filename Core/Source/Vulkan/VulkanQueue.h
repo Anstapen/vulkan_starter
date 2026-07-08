@@ -23,7 +23,7 @@ public:
 	VulkanQueue& operator=(const VulkanQueue& other) = delete;
 	/** Move-assigns from `other`, taking over its type and queue handle. */
 	VulkanQueue& operator=(VulkanQueue&& other) noexcept;
-	/** Which queue type this queue was created to satisfy. */
+	/** Which queue type this queue was created to satisfy. */	
 	Ping::QueueType type;
 	/** The underlying Vulkan queue. */
 	vk::raii::Queue queue;

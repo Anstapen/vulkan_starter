@@ -36,28 +36,42 @@ void VKManager::Init()
 void Backend::VKManager::Shutdown() { glfwTerminate(); }
 
 VulkanContext VKManager::CreateVulkanContext(
-	const Window&								window,
-	const std::vector<VKQueueFamilyProperties>& wanted_queues,
-	const std::vector<const char*>&				wanted_extensions,
-	const std::vector<const char*>&				wanted_validation_layers)
+	const Window&					   window,
+	const std::vector<VKQueueRequest>& wanted_queues,
+	const std::vector<const char*>&	   wanted_instance_extensions,
+	const std::vector<const char*>&	   wanted_device_extensions,
+	const std::vector<const char*>&	   wanted_validation_layers)
 {
 	assert(is_initialized && "VKManager::Init() must be called before creating a Vulkan context!");
-	vk::raii::Instance instance = CreateInstance(wanted_extensions, wanted_validation_layers);
+	vk::raii::Instance instance = CreateInstance(wanted_instance_extensions, wanted_validation_layers);
 
 	vk::raii::SurfaceKHR surface = CreateSurface(instance, window);
 
 	vk::raii::PhysicalDevice phys_device = SelectBestDevice(instance, surface);
 
+	std::vector<VKResolvedQueue> resolved_queues = VKQueueFamilyAllocator::Allocate(phys_device, wanted_queues);
+
+	logger->info("The following queues are created:");
+
+	for (const auto& q : resolved_queues)
+	{
+		logger->info(static_cast<uint32_t>(q.familyIndex));
+		logger->info(static_cast<uint32_t>(q.queueIndexInFamily));
+		logger->info(static_cast<uint32_t>(q.type));
+	}
+
 	VulkanQueues	 actual_queues;
 	vk::raii::Device device =
-		CreateLogicalDevice(phys_device, actual_queues, wanted_queues, {vk::KHRSwapchainExtensionName}, surface);
+		CreateLogicalDevice(phys_device, actual_queues, resolved_queues, wanted_device_extensions, surface);
 
 	std::vector<VulkanCommandPool> command_pools;
-	CreateCommandPools(device, phys_device, wanted_queues, command_pools);
+	CreateCommandPools(device, resolved_queues, command_pools);
+
+	vk::raii::DebugUtilsMessengerEXT debug_messenger = SetupDebugCallback(instance, debugCallback);
 
 	return VulkanContext(
 		std::move(instance), std::move(phys_device), std::move(device), std::move(actual_queues), std::move(surface),
-		std::move(command_pools));
+		std::move(command_pools), std::move(debug_messenger));
 }
 
 VulkanSwapChain
@@ -137,11 +151,11 @@ VulkanPipeline Backend::VKManager::CreatePipeline(
 
 	vk::PipelineInputAssemblyStateCreateInfo inputAssembly{.topology = vk::PrimitiveTopology::eTriangleList};
 	vk::Viewport							 viewport{0.0f,
-						  0.0f,
-						  static_cast<float>(swapchain.swapChainExtent.width),
-						  static_cast<float>(swapchain.swapChainExtent.height),
-						  0.0f,
-						  1.0f};
+													  0.0f,
+													  static_cast<float>(swapchain.swapChainExtent.width),
+													  static_cast<float>(swapchain.swapChainExtent.height),
+													  0.0f,
+													  1.0f};
 	vk::PipelineViewportStateCreateInfo		 viewportState{.viewportCount = 1, .scissorCount = 1};
 	vk::Rect2D								 scissor{vk::Offset2D{0, 0}, swapchain.swapChainExtent};
 
@@ -262,7 +276,7 @@ VulkanBuffer Backend::VKManager::CreateBuffer(
 		mapped_memory = buffer_memory.mapMemory(0, VK_WHOLE_SIZE);
 	}
 
-	return VulkanBuffer(std::move(buffer), std::move(buffer_memory), mapped_memory, bufferInfo.size);
+	return VulkanBuffer(std::move(buffer), std::move(buffer_memory), mapped_memory, bufferInfo.size, usage, property);
 }
 
 void Backend::VKManager::transitionImageLayout(
@@ -344,7 +358,7 @@ vk::raii::Instance VKManager::CreateInstance(
 		.applicationVersion = VK_MAKE_API_VERSION(1, 0, 0, 0),
 		.pEngineName = "No Engine",
 		.engineVersion = VK_MAKE_API_VERSION(1, 0, 0, 0),
-		.apiVersion = VK_API_VERSION_1_0};
+		.apiVersion = VK_API_VERSION_1_4};
 
 	vk::InstanceCreateInfo instance_create_info{.pApplicationInfo = &app_info};
 
@@ -445,37 +459,16 @@ void VKManager::AddRequiredExtensions(VKExtensions& extensions)
 }
 
 void Backend::VKManager::CreateCommandPools(
-	const vk::raii::Device&						device,
-	const vk::raii::PhysicalDevice				phys_device,
-	const std::vector<VKQueueFamilyProperties>& queues,
-	std::vector<VulkanCommandPool>&				command_pools)
+	const vk::raii::Device&				device,
+	const std::vector<VKResolvedQueue>& resolved_queues,
+	std::vector<VulkanCommandPool>&		command_pools)
 {
-	for (const auto& queue : queues)
+	for (const auto& r : resolved_queues)
 	{
-		/* Get the queue family index */
-		auto queue_family_index = queue.GetQueueIndexFromPhysicalDevice(phys_device);
-		if (!queue_family_index.has_value())
-		{
-			logger->error("Unable to retrieve queue family index from physical device!");
-			throw std::runtime_error("Unable to retrieve queue family index from physical device!");
-		}
 		vk::CommandPoolCreateInfo pool_info{
-			.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
-			.queueFamilyIndex = queue_family_index.value()};
+			.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer, .queueFamilyIndex = r.familyIndex};
 		vk::raii::CommandPool command_pool(device, pool_info);
-
-		Ping::QueueType wanted_type = Ping::QueueType::Compute;
-		/* very verbose for now */
-		if (queue.wanted_flags & vk::QueueFlagBits::eGraphics)
-		{
-			wanted_type = Ping::QueueType::Graphics;
-		}
-		else if (queue.wanted_flags & vk::QueueFlagBits::eTransfer)
-		{
-			wanted_type = Ping::QueueType::Transfer;
-		}
-
-		command_pools.emplace_back(VulkanCommandPool(wanted_type, std::move(command_pool)));
+		command_pools.emplace_back(VulkanCommandPool(r.type, std::move(command_pool)));
 	}
 }
 
@@ -548,43 +541,31 @@ bool VKManager::IsDeviceSuitable(const vk::raii::PhysicalDevice& device)
 }
 
 vk::raii::Device VKManager::CreateLogicalDevice(
-	const vk::raii::PhysicalDevice&				phys_device,
-	VulkanQueues&								queues,
-	const std::vector<VKQueueFamilyProperties>& wanted_queues,
-	const std::vector<const char*>&				wanted_extensions,
-	vk::raii::SurfaceKHR&						surface)
+	const vk::raii::PhysicalDevice&		phys_device,
+	VulkanQueues&						queues,
+	const std::vector<VKResolvedQueue>& wanted_queues,
+	const std::vector<const char*>&		wanted_device_extensions,
+	vk::raii::SurfaceKHR&				surface)
 {
-	(void)wanted_extensions;
-	/* First we need to prepare the QueueCreateInfo structures */
-	/* The queue priority values need to be pointers to float */
-	std::vector<float>					   queue_priorities(wanted_queues.size(), 1.0f);
-	std::vector<vk::DeviceQueueCreateInfo> queue_create_infos(wanted_queues.size());
+	std::unordered_map<uint32_t, uint32_t> queueCountPerFamily;
+	for (auto& r : wanted_queues)
+		queueCountPerFamily[r.familyIndex] = std::max(queueCountPerFamily[r.familyIndex], r.queueIndexInFamily + 1);
 
-	for (uint32_t i = 0; i < wanted_queues.size(); i++)
+	std::vector<std::vector<float>>		   priorities;
+	std::vector<vk::DeviceQueueCreateInfo> queue_create_infos;
+	for (auto& [familyIndex, count] : queueCountPerFamily)
 	{
-		std::optional<uint32_t> q_index = wanted_queues[i].GetQueueIndexFromPhysicalDevice(phys_device);
-		auto&					current_queue_create_info = queue_create_infos[i];
-		if (!q_index.has_value())
-		{
-			throw std::runtime_error("Device has no suitable queues!");
-		}
+		priorities.emplace_back(count, 1.0f);
+		queue_create_infos.push_back(
+			{.queueFamilyIndex = familyIndex, .queueCount = count, .pQueuePriorities = priorities.back().data()});
+	}
 
-		/*
-			If the queue to be created is a graphics queue,
-			we need to check the presentation suport.
-			This is lazy for now (there could be multiple graphics queue,
-			but we only take the first one and check presentation support.
-		*/
-		if ((wanted_queues[i].wanted_flags & vk::QueueFlagBits::eGraphics) &&
-			!wanted_queues[i].CheckSurfaceSupport(phys_device, surface))
-		{
-			throw std::runtime_error("The graphics queue of the device has no presentation "
-									 "support!");
-		}
-
-		current_queue_create_info.pQueuePriorities = &queue_priorities[i];
-		current_queue_create_info.queueCount = wanted_queues[i].wanted_queue_instances;
-		current_queue_create_info.queueFamilyIndex = q_index.value();
+	auto graphics_it = std::find_if(
+		wanted_queues.begin(), wanted_queues.end(),
+		[](const VKResolvedQueue& r) { return r.type == Ping::QueueType::Graphics; });
+	if (graphics_it != wanted_queues.end() && !phys_device.getSurfaceSupportKHR(graphics_it->familyIndex, *surface))
+	{
+		throw std::runtime_error("The graphics queue of the device has no presentation support!");
 	}
 
 	/* Select device features */
@@ -600,26 +581,17 @@ vk::raii::Device VKManager::CreateLogicalDevice(
 	vk::DeviceCreateInfo device_create_info;
 
 	device_create_info.pNext = &featureChain.get<vk::PhysicalDeviceFeatures2>();
-	device_create_info.enabledExtensionCount = static_cast<uint32_t>(wanted_extensions.size());
-	device_create_info.ppEnabledExtensionNames = wanted_extensions.data();
+	device_create_info.enabledExtensionCount = static_cast<uint32_t>(wanted_device_extensions.size());
+	device_create_info.ppEnabledExtensionNames = wanted_device_extensions.data();
 	device_create_info.pQueueCreateInfos = queue_create_infos.data();
 	device_create_info.queueCreateInfoCount = static_cast<uint32_t>(queue_create_infos.size());
 
 	vk::raii::Device device = vk::raii::Device(phys_device, device_create_info);
 
-	for (uint32_t i = 0; i < wanted_queues.size(); i++)
+	for (auto& r : wanted_queues)
 	{
-		Ping::QueueType q_type = Ping::QueueType::Graphics;
-		vk::raii::Queue queue(device, queue_create_infos[i].queueFamilyIndex, 0);
-		if (wanted_queues[i].wanted_flags & vk::QueueFlagBits::eCompute)
-		{
-			q_type = Ping::QueueType::Compute;
-		}
-		else if (wanted_queues[i].wanted_flags & vk::QueueFlagBits::eTransfer)
-		{
-			q_type = Ping::QueueType::Transfer;
-		}
-		queues.push_back(VulkanQueue(q_type, std::move(queue)));
+		vk::raii::Queue queue(device, r.familyIndex, r.queueIndexInFamily);
+		queues.push_back(VulkanQueue(r.type, std::move(queue)));
 	}
 
 	return device;
@@ -651,8 +623,9 @@ vk::SurfaceFormatKHR Backend::VKManager::SelectSurfaceFormat(const std::vector<v
 
 vk::PresentModeKHR Backend::VKManager::SelectPresentMode(const std::vector<vk::PresentModeKHR>& availablePresentModes)
 {
-	assert(std::ranges::any_of(
-		availablePresentModes, [](auto presentMode) { return presentMode == vk::PresentModeKHR::eFifo; }));
+	assert(
+		std::ranges::any_of(
+			availablePresentModes, [](auto presentMode) { return presentMode == vk::PresentModeKHR::eFifo; }));
 	return std::ranges::any_of(
 			   availablePresentModes,
 			   [](const vk::PresentModeKHR value) { return vk::PresentModeKHR::eMailbox == value; })

@@ -32,6 +32,7 @@ class Device
 {
 	friend class CommandBuffer;
 	friend class SwapChain;
+	friend class Buffer;
 
 public:
 	virtual ~Device();

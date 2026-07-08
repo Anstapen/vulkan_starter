@@ -1,6 +1,7 @@
 #pragma once
 #include "Logger/Logger.h"
 #include "VulkanCommon.h"
+#include "Ping/Types.h"
 #include <optional>
 #include <vector>
 
@@ -82,22 +83,35 @@ private:
 	std::vector<char*> validation_layers;
 };
 
-/** A requested queue family: the queue flags it must support and how many queue instances are needed. */
-struct VKQueueFamilyProperties
+
+/** A single requested queue, identified by role rather than raw Vulkan flags. */
+struct VKQueueRequest
 {
-	/** Queue capabilities that must all be present (e.g. graphics + compute). */
-	vk::QueueFlags wanted_flags;
-	/** Minimum number of queues the family must expose. */
-	uint32_t wanted_queue_instances;
+	Ping::QueueType type;
+	/** Prefer a family that does NOT also carry other roles' flags — for a genuinely
+	 *  separate hardware queue (async compute/transfer) where the GPU exposes one. */
+	bool prefer_dedicated_family = false;
+};
 
-	/**
-	 * Finds the first queue family index on `device` satisfying `wanted_flags` and `wanted_queue_instances`,
-	 * or `std::nullopt` if none does.
-	 */
-	std::optional<uint32_t> GetQueueIndexFromPhysicalDevice(const vk::raii::PhysicalDevice& device) const;
+/** Where a `VKQueueRequest` ended up: which family, and which queue slot within it. */
+struct VKResolvedQueue
+{
+	Ping::QueueType type;
+	uint32_t		familyIndex;
+	uint32_t		queueIndexInFamily;
+};
 
-	/** Whether the queue family found via `GetQueueIndexFromPhysicalDevice` can present to `surface`. */
-	bool CheckSurfaceSupport(const vk::raii::PhysicalDevice& device, const vk::raii::SurfaceKHR& surface) const;
+/** Resolves `VKQueueRequest`s to concrete queue families, deduplicating so multiple
+ *  requests can safely share a family in a single `vk::DeviceQueueCreateInfo`. */
+class VKQueueFamilyAllocator
+{
+public:
+	/** @throws std::runtime_error if a request's flags aren't satisfied by any queue family. */
+	static std::vector<VKResolvedQueue>
+	Allocate(const vk::raii::PhysicalDevice& phys_device, const std::vector<VKQueueRequest>& requests);
+
+private:
+	static vk::QueueFlags RequiredFlags(Ping::QueueType type);
 };
 
 } // namespace Backend

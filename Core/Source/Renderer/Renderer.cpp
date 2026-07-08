@@ -6,6 +6,15 @@
 
 using namespace Mupfel;
 
+static const std::vector<Transform> vertices = {
+	{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+	{{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+	{{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+	{{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}};
+
+static const std::vector<uint16_t> indices = {0, 1, 2, 2, 3, 0};
+
+
 void Mupfel::Renderer::Init(const Ping::Device& device, const Window& window)
 {
 	logger = Logger::Create("Renderer");
@@ -28,14 +37,20 @@ void Mupfel::Renderer::SyncRenderableObjects(World& world, const Ping::Device& d
 {
 	Ping::Buffer&  buffer = vertex_buffers[frame_index];
 	auto*		   mapped_ptr = static_cast<Transform*>(buffer.GetMappedPtr());
-	const uint32_t capacity = static_cast<uint32_t>(buffer.Size() / sizeof(Transform));
+	uint64_t       capacity = buffer.Size() / sizeof(Transform);
 
 	uint32_t write_index = 0;
 	for (auto [e, transform, texture] : world.registry.view<Transform, Texture>())
 	{
 		if (write_index >= capacity)
-			break;
+		{
+			/* Resize the buffer, make it grow exponentially to avoid frequent resizes! */
+			buffer.Resize(device, (buffer.Size() + 1) * 2);
 
+			/* Resizing the buffer does not guarantee that the mapped ptr stays the same */
+			mapped_ptr = static_cast<Transform*>(buffer.GetMappedPtr());
+			capacity = buffer.Size() / sizeof(Transform);
+		}
 		mapped_ptr[write_index++] = transform;
 	}
 }
