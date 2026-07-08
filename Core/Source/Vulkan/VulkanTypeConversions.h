@@ -24,6 +24,9 @@ vk::PipelineStageFlags2 ToVulkan(Ping::PipelineStage stage);
 /** Bitwise-ORs together the `vk::BufferUsageFlagBits` for every flag set in `usage`. */
 vk::BufferUsageFlags ToVulkan(Ping::BufferUsage usage);
 
+/** Bitwise-ORs together the `vk::CommandBufferUsageFlags` for every flag set in `usage`. */
+vk::CommandBufferUsageFlags ToVulkan(Ping::CommandBufferUsage usage);
+
 /** Bitwise-ORs together the `vk::MemoryPropertyFlagBits` for every flag set in `property`. */
 vk::MemoryPropertyFlags ToVulkan(Ping::MemoryProperty property);
 

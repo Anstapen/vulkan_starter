@@ -39,18 +39,23 @@ public:
 
 	/**
 	 * Resize the buffer to \a new_size.
+	 * 
+	 * @warning The buffer needs to have the BufferUsage::TransferSrc flag!
 	 */
 	void Resize(const Device& device, uint64_t new_size);
 
 	/**
 	 * Returns a pointer to the buffer's persistently-mapped host memory.
-	 *
-	 * @warning Only valid if the buffer was created with `MemoryProperty::HostVisible`; writes are
-	 * only guaranteed visible to the device without an explicit flush if `MemoryProperty::HostCoherent`
-	 * was also requested (otherwise call `Device::Flush`).
 	 * @return Pointer to the start of the mapped memory.
 	 */
 	void* GetMappedPtr();
+
+	/**
+	* Copy given host data to a device-local GPU buffer using an intermediate staging buffer.
+	* 
+	* @warning This function will throw an error if it is used on a buffer that is not device local!
+	*/
+	void CopyHostData(const Device& device, void* src, uint64_t size);
 
 private:
 	/** Owning pointer to the backend buffer and its memory. */

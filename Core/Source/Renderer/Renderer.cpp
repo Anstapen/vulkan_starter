@@ -74,7 +74,7 @@ void Mupfel::Renderer::RenderNextFrame(World& world, const Ping::Device& device,
 		return;
 	}
 
-	current_command_buffer.Begin(device);
+	current_command_buffer.Begin(device, Ping::CommandBufferUsage::None);
 
 	Ping::ImageLayoutTransition layout_transition = {
 		.oldLayout = Ping::ImageLayout::Undefined,

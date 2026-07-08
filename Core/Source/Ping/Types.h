@@ -117,7 +117,7 @@ enum class BufferUsage : uint32_t
 	TransferDst = 1 << 2
 };
 
-/** Combines two BufferUsage flags. See the `Ping/Types.h` bitmask-enum pattern documented in CLAUDE.md. */
+/** Combines two BufferUsage flags. See the `Ping/Types.h`. */
 constexpr BufferUsage operator|(BufferUsage lhs, BufferUsage rhs)
 {
 	return static_cast<BufferUsage>(static_cast<uint32_t>(lhs) | static_cast<uint32_t>(rhs));
@@ -125,6 +125,32 @@ constexpr BufferUsage operator|(BufferUsage lhs, BufferUsage rhs)
 
 /** Returns whether every bit set in `flag` is also set in `value`. */
 constexpr bool HasFlag(BufferUsage value, BufferUsage flag)
+{
+	return (static_cast<uint32_t>(value) & static_cast<uint32_t>(flag)) != 0;
+}
+
+/**
+ * Bitmask mirror of `vk::CommandBufferUsageFlags`.
+ */
+enum class CommandBufferUsage : uint32_t
+{
+	None = 0,
+	/** CommandBuffer will be submitted once */
+	OneTimeSubmit = 1 << 0,
+	/** Buffer can be the source of a transfer/copy operation. */
+	RenderPassContinue = 1 << 1,
+	/** Buffer can be the destination of a transfer/copy operation. */
+	SimultaneousUse = 1 << 2
+};
+
+/** Combines two CommandBufferUsage flags. See the `Ping/Types.h`. */
+constexpr CommandBufferUsage operator|(CommandBufferUsage lhs, CommandBufferUsage rhs)
+{
+	return static_cast<CommandBufferUsage>(static_cast<uint32_t>(lhs) | static_cast<uint32_t>(rhs));
+}
+
+/** Returns whether every bit set in `flag` is also set in `value`. */
+constexpr bool HasFlag(CommandBufferUsage value, CommandBufferUsage flag)
 {
 	return (static_cast<uint32_t>(value) & static_cast<uint32_t>(flag)) != 0;
 }
@@ -199,5 +225,8 @@ struct VertexBinding
 	/** Shader-visible attributes sourced from this binding. */
 	std::vector<VertexAttribute> attributes;
 };
+
+
+
 
 } // namespace Ping

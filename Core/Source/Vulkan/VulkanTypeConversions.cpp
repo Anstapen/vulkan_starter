@@ -44,6 +44,17 @@ vk::BufferUsageFlags Backend::ToVulkan(Ping::BufferUsage usage)
 	return result;
 }
 
+vk::CommandBufferUsageFlags Backend::ToVulkan(Ping::CommandBufferUsage usage) { 
+	vk::CommandBufferUsageFlags result{};
+	if (Ping::HasFlag(usage, Ping::CommandBufferUsage::OneTimeSubmit))
+		result |= vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
+	if (Ping::HasFlag(usage, Ping::CommandBufferUsage::RenderPassContinue))
+		result |= vk::CommandBufferUsageFlagBits::eRenderPassContinue;
+	if (Ping::HasFlag(usage, Ping::CommandBufferUsage::SimultaneousUse))
+		result |= vk::CommandBufferUsageFlagBits::eSimultaneousUse;
+	return result;
+}
+
 vk::MemoryPropertyFlags Backend::ToVulkan(Ping::MemoryProperty property)
 {
 	vk::MemoryPropertyFlags result{};
@@ -67,5 +78,5 @@ vk::Format Backend::ToVulkan(Ping::VertexFormat format)
 	case Ping::VertexFormat::Float32x4:
 		return vk::Format::eR32G32B32A32Sfloat;
 	}
-	assert(false && "Unhandled Ping::VertexFormat");
+	throw std::runtime_error("Unhandled Ping::VertexFormat");
 }

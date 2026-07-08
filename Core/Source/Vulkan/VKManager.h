@@ -108,6 +108,12 @@ public:
 	/** Blocks until `device` has completed all previously submitted work (`vkDeviceWaitIdle`). */
 	static void WaitForCommands(const vk::raii::Device& device);
 
+	static void CopyBuffer(
+		const VulkanContext& context,
+		vk::raii::Buffer&	 srcBuffer,
+		vk::raii::Buffer&	 dstBuffer,
+		vk::DeviceSize		 size);
+
 private:
 	/**
 	 * Creates the `vk::Instance`, enabling `wanted_extensions`/`wanted_validation_layers` (each

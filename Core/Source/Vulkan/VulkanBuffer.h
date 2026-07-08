@@ -62,6 +62,13 @@ public:
 	 */
 	void* GetMappedPtr();
 
+	/**
+	* Copies the given host memory into the device local GPU buffer.
+	* 
+	* @warning This function will throw an error if the buffer is not device local!
+	*/
+	void CopyHostData(const VulkanContext& context, void* src, uint64_t size);
+
 private:
 	/** The underlying Vulkan buffer. */
 	vk::raii::Buffer buffer;

@@ -7,6 +7,7 @@
 
 namespace Backend
 {
+
 /**
  * RAII-owning backend counterpart of `Ping::CommandBuffer`: the command buffer itself plus the
  * fence used to know when the GPU has finished with it, so its slot can be reused.
@@ -21,7 +22,9 @@ public:
 	 * `in_draw_fence` should be created already signaled, so the first `WaitForFences` for this
 	 * slot doesn't block waiting on a submission that never happened.
 	 */
-	VulkanCommandBuffer(vk::raii::CommandBuffer&& in_cmd_buffer, vk::raii::Fence&& in_draw_fence) noexcept;
+	VulkanCommandBuffer(
+		vk::raii::CommandBuffer&& in_cmd_buffer,
+		vk::raii::Fence&&		  in_draw_fence) noexcept;
 	VulkanCommandBuffer(const VulkanCommandBuffer& other) = delete;
 	/** Move-constructs from `other`, taking over its command buffer and fence. */
 	VulkanCommandBuffer(VulkanCommandBuffer&& other) noexcept;
@@ -41,7 +44,7 @@ public:
 	 * Resets `drawFence` and begins recording. Callers must have called `WaitForFences` first, so the
 	 * fence isn't reset while a submission that references it could still be pending.
 	 */
-	void Begin(const vk::raii::Device& device) const;
+	void Begin(const vk::raii::Device& device, vk::CommandBufferUsageFlags usage) const;
 
 	/** Binds `pipeline` at the graphics bind point. */
 	void BindPipeline(const VulkanPipeline& pipeline) const;

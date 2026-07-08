@@ -51,15 +51,6 @@ VulkanContext VKManager::CreateVulkanContext(
 
 	std::vector<VKResolvedQueue> resolved_queues = VKQueueFamilyAllocator::Allocate(phys_device, wanted_queues);
 
-	logger->info("The following queues are created:");
-
-	for (const auto& q : resolved_queues)
-	{
-		logger->info(static_cast<uint32_t>(q.familyIndex));
-		logger->info(static_cast<uint32_t>(q.queueIndexInFamily));
-		logger->info(static_cast<uint32_t>(q.type));
-	}
-
 	VulkanQueues	 actual_queues;
 	vk::raii::Device device =
 		CreateLogicalDevice(phys_device, actual_queues, resolved_queues, wanted_device_extensions, surface);
@@ -251,10 +242,24 @@ VulkanBuffer Backend::VKManager::CreateBuffer(
 	Ping::BufferUsage	 usage,
 	Ping::MemoryProperty property)
 {
+	/* find queue family indices to share the buffer with */
+
 	vk::BufferCreateInfo bufferInfo{
 		.size = static_cast<vk::DeviceSize>(size),
 		.usage = ToVulkan(usage),
 		.sharingMode = vk::SharingMode::eExclusive};
+
+	const uint32_t queue_indices[2] = {
+		context.queues[GetQueueIndex(context, Ping::QueueType::Transfer)].familyIndex,
+		context.queues[GetQueueIndex(context, Ping::QueueType::Graphics)].familyIndex};
+
+	if (Ping::HasFlag(property, Ping::MemoryProperty::DeviceLocal))
+	{
+		/* device local buffer are shared across transfer and graphics queues */
+		bufferInfo.sharingMode = vk::SharingMode::eConcurrent;
+		bufferInfo.queueFamilyIndexCount = 2;
+		bufferInfo.pQueueFamilyIndices = &queue_indices[0];
+	}
 
 	auto buffer = vk::raii::Buffer(context.device, bufferInfo);
 
@@ -468,7 +473,7 @@ void Backend::VKManager::CreateCommandPools(
 		vk::CommandPoolCreateInfo pool_info{
 			.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer, .queueFamilyIndex = r.familyIndex};
 		vk::raii::CommandPool command_pool(device, pool_info);
-		command_pools.emplace_back(VulkanCommandPool(r.type, std::move(command_pool)));
+		command_pools.emplace_back(VulkanCommandPool(r.type, std::move(command_pool), r.familyIndex));
 	}
 }
 
@@ -591,7 +596,7 @@ vk::raii::Device VKManager::CreateLogicalDevice(
 	for (auto& r : wanted_queues)
 	{
 		vk::raii::Queue queue(device, r.familyIndex, r.queueIndexInFamily);
-		queues.push_back(VulkanQueue(r.type, std::move(queue)));
+		queues.push_back(VulkanQueue(r.type, std::move(queue), r.familyIndex));
 	}
 
 	return device;
@@ -694,4 +699,30 @@ uint32_t Backend::VKManager::findMemoryType(
 
 	/* No memory type was found */
 	throw std::runtime_error("Unable to find fitting memory type!");
+}
+
+void Backend::VKManager::CopyBuffer(
+	const VulkanContext& context,
+	vk::raii::Buffer&	 srcBuffer,
+	vk::raii::Buffer&	 dstBuffer,
+	vk::DeviceSize		 size)
+{
+	VulkanCommandBuffers copy_cmd_buffer = CreateCommandBuffers(context, Ping::QueueType::Transfer, 1);
+
+	if (copy_cmd_buffer.size() != 1)
+	{
+		throw std::runtime_error("Unable to create Command buffer from transfer queue");
+	}
+
+	copy_cmd_buffer[0].Begin(context.device, vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
+
+	copy_cmd_buffer[0].commandBuffer.copyBuffer(*srcBuffer, *dstBuffer, vk::BufferCopy(0, 0, size));
+
+	copy_cmd_buffer[0].End();
+
+	uint32_t q_index = VKManager::GetQueueIndex(context, Ping::QueueType::Transfer);
+
+	context.queues[q_index].queue.submit(
+		vk::SubmitInfo{.commandBufferCount = 1, .pCommandBuffers = &*copy_cmd_buffer[0].commandBuffer}, nullptr);
+	context.queues[q_index].queue.waitIdle();
 }

@@ -27,3 +27,8 @@ void Ping::Buffer::Resize(const Device& device, uint64_t new_size)
 }
 
 void* Ping::Buffer::GetMappedPtr() { return vulkanBufferPtr->GetMappedPtr(); }
+
+void Ping::Buffer::CopyHostData(const Device& device, void* src, uint64_t size)
+{
+	vulkanBufferPtr->CopyHostData(*device.vulkanContextPtr.get(), src, size);
+}

@@ -74,8 +74,17 @@ void Backend::VulkanBuffer::Resize(const VulkanContext& context, uint64_t new_si
 	}
 	else
 	{
-		/* TODO: buffer is device local */
-		throw std::runtime_error("The buffer resize for device-local buffers is not yet implemented!");
+		/* Resizing a device local buffer needs TransferSrc */
+		if (!Ping::HasFlag(bufferUsage, Ping::BufferUsage::TransferSrc))
+		{
+			throw std::runtime_error("Tried to resize a device local buffer that is missing the TransferSrc flag!");
+		}
+
+		VulkanBuffer new_buffer = VKManager::CreateBuffer(context, new_size, bufferUsage | Ping::BufferUsage::TransferDst, memoryProperty);
+		VKManager::CopyBuffer(context, this->buffer, new_buffer.buffer, this->size);
+
+		*this = std::move(new_buffer);
+
 	}
 }
 
@@ -83,4 +92,32 @@ void* Backend::VulkanBuffer::GetMappedPtr()
 {
 	assert(data != nullptr && "Trying to retrive a pointer to unmapped memory!");
 	return data;
+}
+
+void Backend::VulkanBuffer::CopyHostData(const VulkanContext& context, void* src, uint64_t size)
+{
+	/* The buffer must be device local for this to work! */
+	if (data)
+	{
+		throw std::runtime_error("Tried to copy host data to non-device-local buffer!");
+	}
+
+	if (size > this->size)
+	{
+		throw std::runtime_error("Tried to copy more data than the buffer can currently hold!");
+	}
+
+	/* Create a staging buffer for the host data */
+	VulkanBuffer staging_buffer = VKManager::CreateBuffer(
+		context, size, Ping::BufferUsage::TransferSrc,
+		Ping::MemoryProperty::HostVisible | Ping::MemoryProperty::HostCoherent);
+
+	void* staging_ptr = staging_buffer.GetMappedPtr();
+
+	/* This should always work, as the buffer was just created using HostVisible */
+	assert(staging_ptr);
+
+	std::memcpy(staging_ptr, src, size);
+
+	VKManager::CopyBuffer(context, staging_buffer.buffer, this->buffer, size);
 }

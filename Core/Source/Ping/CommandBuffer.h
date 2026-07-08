@@ -43,7 +43,7 @@ public:
 	void WaitForFences(const Device& device);
 
 	/** Begins recording. Must be called before any other recording method, once per frame. */
-	void Begin(const Device& device);
+	void Begin(const Device& device, CommandBufferUsage usage);
 
 	/** Records a pipeline barrier that transitions `swapchain`'s image at `image_index` per `transition`. */
 	void transitionImageLayout(SwapChain& swapchain, uint32_t image_index, const ImageLayoutTransition& transition);
@@ -82,7 +82,7 @@ private:
 		vulkanCommandBufferPtr;
 };
 
-/** One command buffer per frame in flight, as returned by `Device::CreateCommandBuffers`. */
+/** helper typedef */
 typedef std::vector<CommandBuffer> CommandBuffers;
 
 } // namespace Ping

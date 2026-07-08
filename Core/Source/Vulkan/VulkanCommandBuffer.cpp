@@ -22,11 +22,14 @@ VulkanCommandBuffer& Backend::VulkanCommandBuffer::operator=(VulkanCommandBuffer
 	return *this;
 }
 
-void VulkanCommandBuffer::Begin(const vk::raii::Device& device) const
+void VulkanCommandBuffer::Begin(const vk::raii::Device& device, vk::CommandBufferUsageFlags usage) const
 {
-
 	device.resetFences(*drawFence);
-	commandBuffer.begin({});
+
+	vk::CommandBufferBeginInfo info{};
+	info.flags = usage;
+
+	commandBuffer.begin(info);
 }
 
 void Backend::VulkanCommandBuffer::WaitForFences(const vk::raii::Device& device) const

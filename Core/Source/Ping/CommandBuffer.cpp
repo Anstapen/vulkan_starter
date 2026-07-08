@@ -2,6 +2,7 @@
 #include "Ping/Device.h"
 #include "Vulkan/VKManager.h"
 #include "Vulkan/VulkanCommandBuffer.h"
+#include "Vulkan/VulkanTypeConversions.h"
 
 using namespace Ping;
 
@@ -28,10 +29,10 @@ void Ping::CommandBuffer::WaitForFences(const Device& device)
 	vulkanCommandBufferPtr->WaitForFences(device.vulkanContextPtr->device);
 }
 
-void Ping::CommandBuffer::Begin(const Device& device)
+void Ping::CommandBuffer::Begin(const Device& device, CommandBufferUsage usage)
 {
 
-	vulkanCommandBufferPtr->Begin(device.vulkanContextPtr->device);
+	vulkanCommandBufferPtr->Begin(device.vulkanContextPtr->device, Backend::ToVulkan(usage));
 }
 
 void Ping::CommandBuffer::transitionImageLayout(
