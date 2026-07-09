@@ -164,11 +164,11 @@ VulkanPipeline Backend::VKManager::CreatePipeline(
 
 	vk::PipelineInputAssemblyStateCreateInfo inputAssembly{.topology = vk::PrimitiveTopology::eTriangleList};
 	vk::Viewport							 viewport{0.0f,
-						  0.0f,
-						  static_cast<float>(swapchain.swapChainExtent.width),
-						  static_cast<float>(swapchain.swapChainExtent.height),
-						  0.0f,
-						  1.0f};
+													  0.0f,
+													  static_cast<float>(swapchain.swapChainExtent.width),
+													  static_cast<float>(swapchain.swapChainExtent.height),
+													  0.0f,
+													  1.0f};
 	vk::PipelineViewportStateCreateInfo		 viewportState{.viewportCount = 1, .scissorCount = 1};
 	vk::Rect2D								 scissor{vk::Offset2D{0, 0}, swapchain.swapChainExtent};
 
@@ -259,7 +259,7 @@ VulkanDescriptorPool Backend::VKManager::CreateDescriptorSets(
 	/* vkAllocateDescriptorSets wants one layout handle per set, even though they're all identical. */
 	std::vector<vk::DescriptorSetLayout> layouts(set_count, *pipeline.descriptorSetLayout);
 	vk::DescriptorSetAllocateInfo		 allocInfo{
-			   .descriptorPool = pool, .descriptorSetCount = set_count, .pSetLayouts = layouts.data()};
+		.descriptorPool = pool, .descriptorSetCount = set_count, .pSetLayouts = layouts.data()};
 
 	vk::raii::DescriptorSets rawSets(context.device, allocInfo);
 
@@ -379,9 +379,32 @@ void Backend::VKManager::transitionImageLayout(
 		.dstAccessMask = ToVulkan(layout_transition.dstAccessMask),
 		.oldLayout = ToVulkan(layout_transition.oldLayout),
 		.newLayout = ToVulkan(layout_transition.newLayout),
-		.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-		.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+		.srcQueueFamilyIndex = vk::QueueFamilyIgnored,
+		.dstQueueFamilyIndex = vk::QueueFamilyIgnored,
 		.image = swapchain.swapChainImages[imageIndex],
+		.subresourceRange = {
+			.aspectMask = vk::ImageAspectFlagBits::eColor,
+			.baseMipLevel = 0,
+			.levelCount = 1,
+			.baseArrayLayer = 0,
+			.layerCount = 1}};
+	vk::DependencyInfo dependency_info = {
+		.dependencyFlags = {}, .imageMemoryBarrierCount = 1, .pImageMemoryBarriers = &barrier};
+	cmd_buffer.commandBuffer.pipelineBarrier2(dependency_info);
+}
+
+void Backend::VKManager::transitionImageLayout(
+	VulkanCommandBuffer&   cmd_buffer,
+	const vk::raii::Image& image,
+	vk::ImageLayout		   old_layout,
+	vk::ImageLayout		   new_layout)
+{
+	vk::ImageMemoryBarrier2 barrier = {
+		.oldLayout = old_layout,
+		.newLayout = new_layout,
+		.srcQueueFamilyIndex = vk::QueueFamilyIgnored,
+		.dstQueueFamilyIndex = vk::QueueFamilyIgnored,
+		.image = image,
 		.subresourceRange = {
 			.aspectMask = vk::ImageAspectFlagBits::eColor,
 			.baseMipLevel = 0,
@@ -710,8 +733,9 @@ vk::SurfaceFormatKHR Backend::VKManager::SelectSurfaceFormat(const std::vector<v
 
 vk::PresentModeKHR Backend::VKManager::SelectPresentMode(const std::vector<vk::PresentModeKHR>& availablePresentModes)
 {
-	assert(std::ranges::any_of(
-		availablePresentModes, [](auto presentMode) { return presentMode == vk::PresentModeKHR::eFifo; }));
+	assert(
+		std::ranges::any_of(
+			availablePresentModes, [](auto presentMode) { return presentMode == vk::PresentModeKHR::eFifo; }));
 	return std::ranges::any_of(
 			   availablePresentModes,
 			   [](const vk::PresentModeKHR value) { return vk::PresentModeKHR::eMailbox == value; })

@@ -107,6 +107,15 @@ public:
 		const Ping::ImageLayoutTransition& layout_transition);
 
 	/**
+	 * Overloaded version for simple image transitions.
+	 */
+	static void transitionImageLayout(
+		VulkanCommandBuffer&   cmd_buffer,
+		const vk::raii::Image& image,
+		vk::ImageLayout		   old_layout,
+		vk::ImageLayout		   new_layout);
+
+	/**
 	 * Begins dynamic rendering into `swapchain`'s image view at `imageIndex` (clearing to opaque black)
 	 * and sets the viewport/scissor to the swapchain's full extent.
 	 */
