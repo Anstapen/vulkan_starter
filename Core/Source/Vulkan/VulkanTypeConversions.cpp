@@ -41,6 +41,8 @@ vk::BufferUsageFlags Backend::ToVulkan(Ping::BufferUsage usage)
 		result |= vk::BufferUsageFlagBits::eTransferSrc;
 	if (Ping::HasFlag(usage, Ping::BufferUsage::VertexBuffer))
 		result |= vk::BufferUsageFlagBits::eVertexBuffer;
+	if (Ping::HasFlag(usage, Ping::BufferUsage::IndexBuffer))
+		result |= vk::BufferUsageFlagBits::eIndexBuffer;
 	return result;
 }
 

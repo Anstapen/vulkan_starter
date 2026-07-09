@@ -54,6 +54,8 @@ private:
 	std::optional<Ping::CommandBuffers> commandBuffers;
 	/** One host-visible vertex buffer per frame in flight. */
 	std::vector<Ping::Buffer> vertex_buffers;
+	/** One device-local index buffer */
+	std::optional<Ping::Buffer> index_buffer;
 };
 
 } // namespace Mupfel

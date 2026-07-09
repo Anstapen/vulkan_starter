@@ -52,8 +52,14 @@ public:
 	/** Binds `buffer` at vertex input `binding`, starting at offset 0. */
 	void BindVertexBuffer(const VulkanPipeline& pipeline, const VulkanBuffer& buffer, uint32_t binding) const;
 
+	/** Binds `buffer` as index buffer. */
+	void BindIndexBuffer(const VulkanPipeline& pipeline, const VulkanBuffer& buffer) const;
+
 	/** Records a non-indexed draw of `vertex_count` vertices, 1 instance, starting at vertex/instance 0. */
 	void Draw(uint32_t vertex_count) const;
+
+	/** Records an indexed draw of `index_count` vertices, 1 instance, starting at vertex/instance 0. */
+	void DrawIndexed(uint32_t index_count) const;
 
 	/**
 	 * Submits to the context's graphics queue: waits on `swapchain.presentCompleteSemaphores[frameIndex]`

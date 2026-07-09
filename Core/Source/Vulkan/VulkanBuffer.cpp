@@ -94,7 +94,7 @@ void* Backend::VulkanBuffer::GetMappedPtr()
 	return data;
 }
 
-void Backend::VulkanBuffer::CopyHostData(const VulkanContext& context, void* src, uint64_t size)
+void Backend::VulkanBuffer::CopyHostData(const VulkanContext& context, const void* src, uint64_t size)
 {
 	/* The buffer must be device local for this to work! */
 	if (data)

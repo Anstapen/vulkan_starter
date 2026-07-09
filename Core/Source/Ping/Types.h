@@ -109,12 +109,14 @@ enum class QueueType
 enum class BufferUsage : uint32_t
 {
 	None = 0,
-	/** Buffer can be bound as a vertex buffer via `CommandBuffer::BindVertexBuffer`. */
+	/** Buffer can be bound as a vertex buffer. */
 	VertexBuffer = 1 << 0,
 	/** Buffer can be the source of a transfer/copy operation. */
 	TransferSrc = 1 << 1,
 	/** Buffer can be the destination of a transfer/copy operation. */
-	TransferDst = 1 << 2
+	TransferDst = 1 << 2,
+	/** Buffer can be bound as an index buffer. */
+	IndexBuffer = 1 << 3
 };
 
 /** Combines two BufferUsage flags. See the `Ping/Types.h`. */

@@ -55,7 +55,16 @@ void Backend::VulkanCommandBuffer::BindVertexBuffer(
 	commandBuffer.bindVertexBuffers(binding, *buffer.buffer, {0});
 }
 
+void Backend::VulkanCommandBuffer::BindIndexBuffer(const VulkanPipeline& pipeline, const VulkanBuffer& buffer) const {
+	commandBuffer.bindIndexBuffer(*buffer.buffer, 0, vk::IndexType::eUint16);
+}
+
 void VulkanCommandBuffer::Draw(uint32_t vertex_count) const { commandBuffer.draw(vertex_count, 1, 0, 0); }
+
+void Backend::VulkanCommandBuffer::DrawIndexed(uint32_t index_count) const
+{
+	commandBuffer.drawIndexed(index_count, 1, 0, 0, 0);
+}
 
 void Backend::VulkanCommandBuffer::Submit(
 	VulkanContext&	 context,

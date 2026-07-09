@@ -59,6 +59,11 @@ void Ping::CommandBuffer::BindVertexBuffer(const Pipeline& pipeline, const Buffe
 	vulkanCommandBufferPtr->BindVertexBuffer(*pipeline.vulkanPipelinePtr.get(), *buffer.vulkanBufferPtr.get(), binding);
 }
 
+void Ping::CommandBuffer::BindIndexBuffer(const Pipeline& pipeline, const Buffer& buffer) const
+{
+	vulkanCommandBufferPtr->BindIndexBuffer(*pipeline.vulkanPipelinePtr.get(), *buffer.vulkanBufferPtr.get());
+}
+
 void Ping::CommandBuffer::Submit(
 	const Device&	 device,
 	const SwapChain& swapchain,
@@ -70,6 +75,8 @@ void Ping::CommandBuffer::Submit(
 }
 
 void Ping::CommandBuffer::Draw(uint32_t vertex_count) const { vulkanCommandBufferPtr->Draw(vertex_count); }
+
+void Ping::CommandBuffer::DrawIndexed(uint32_t index_count) const { vulkanCommandBufferPtr->DrawIndexed(index_count); }
 
 void Ping::CommandBuffer::End() const { vulkanCommandBufferPtr->End(); }
 

@@ -55,7 +55,7 @@ public:
 	* 
 	* @warning This function will throw an error if it is used on a buffer that is not device local!
 	*/
-	void CopyHostData(const Device& device, void* src, uint64_t size);
+	void CopyHostData(const Device& device, const void* src, uint64_t size);
 
 private:
 	/** Owning pointer to the backend buffer and its memory. */

@@ -60,6 +60,9 @@ public:
 	/** Binds `buffer` as the vertex buffer for `pipeline`'s given `binding` slot. */
 	void BindVertexBuffer(const Pipeline& pipeline, const Buffer& buffer, uint32_t binding) const;
 
+	/** Binds `buffer` as the index buffer for `pipeline`'. */
+	void BindIndexBuffer(const Pipeline& pipeline, const Buffer& buffer) const;
+
 	/**
 	 * Submits the recorded commands to the device's graphics queue. `frameIndex` is this command
 	 * buffer's slot among the frames in flight; `imageIndex` is the swapchain image acquired via
@@ -69,6 +72,9 @@ public:
 
 	/** Records a non-indexed draw of `vertex_count` vertices from the currently bound vertex buffer. */
 	void Draw(uint32_t vertex_count) const;
+
+	/** Records an indexed draw of index_count vertices from the currently bound vertex buffer. */
+	void DrawIndexed(uint32_t index_count) const;
 
 	/** Ends the dynamic rendering pass started by `BeginRendering`. */
 	void EndRendering() const;

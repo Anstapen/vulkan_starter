@@ -67,7 +67,7 @@ public:
 	* 
 	* @warning This function will throw an error if the buffer is not device local!
 	*/
-	void CopyHostData(const VulkanContext& context, void* src, uint64_t size);
+	void CopyHostData(const VulkanContext& context, const void* src, uint64_t size);
 
 private:
 	/** The underlying Vulkan buffer. */
