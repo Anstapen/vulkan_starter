@@ -4,6 +4,9 @@
 #include "ECS/Components/Texture.h"
 #include "ECS/Components/Transform.h"
 
+#include <chrono>
+#include <glm/gtc/matrix_transform.hpp>
+
 using namespace Mupfel;
 
 static const std::vector<Transform> vertices = {
@@ -19,7 +22,10 @@ void Mupfel::Renderer::Init(const Ping::Device& device, const Window& window)
 	logger = Logger::Create("Renderer");
 	logger->info("Init");
 	swapchain = device.CreateSwapChain(window, frames_in_flight);
-	Ping::PipelineSpecification pipeline_spec{"Shaders/slang.spv", Transform::GetVertexLayout()};
+	Ping::PipelineSpecification pipeline_spec{
+		"Shaders/slang.spv",
+		Transform::GetVertexLayout(),
+		{{.binding = 0, .type = Ping::DescriptorType::UniformBuffer, .stageFlags = Ping::ShaderStage::Vertex}}};
 	pipeline = device.CreatePipeline(pipeline_spec, swapchain.value());
 	commandBuffers = device.CreateCommandBuffers(Ping::QueueType::Graphics, frames_in_flight);
 	assert(commandBuffers.has_value() && commandBuffers.value().size() > 0);
@@ -34,6 +40,10 @@ void Mupfel::Renderer::Init(const Ping::Device& device, const Window& window)
 
 		/* Copy vertices */
 		std::memcpy(mapped_ptr, vertices.data(), buffer.Size());
+
+		uniformBuffers.emplace_back(device.CreateBuffer(
+			sizeof(UniformBufferObject), Ping::BufferUsage::UniformBuffer,
+			Ping::MemoryProperty::HostVisible | Ping::MemoryProperty::HostCoherent));
 	}
 
 	index_buffer = std::move(device.CreateBuffer(
@@ -42,10 +52,31 @@ void Mupfel::Renderer::Init(const Ping::Device& device, const Window& window)
 
 	/* Copy indices */
 	index_buffer.value().CopyHostData(device, indices.data(), sizeof(uint16_t) * indices.size());
+
+	/* Create descriptor sets */
+	descriptorSets = device.CreateDescriptorSets(pipeline.value(), uniformBuffers);
 }
 
 void Mupfel::Renderer::SyncRenderableObjects(World& world, const Ping::Device& device, uint32_t frame_index)
 { /* We are currently not taking any data from the CPU */ }
+
+void Mupfel::Renderer::updateMVP(Ping::Buffer& uniform_buffer, Ping::SwapChain& swapchain)
+{
+	auto [width, height] = swapchain.GetExtent();
+
+	static auto startTime = std::chrono::high_resolution_clock::now();
+
+	auto  currentTime = std::chrono::high_resolution_clock::now();
+	float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+
+	UniformBufferObject ubo{};
+	ubo.model = rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	ubo.view = lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	ubo.proj =
+		glm::perspective(glm::radians(45.0f), static_cast<float>(width) / static_cast<float>(height), 0.1f, 10.0f);
+	ubo.proj[1][1] *= -1;
+	std::memcpy(uniform_buffer.GetMappedPtr(), &ubo, sizeof(UniformBufferObject));
+}
 
 void Mupfel::Renderer::RenderNextFrame(World& world, const Ping::Device& device, const Window& window)
 {
@@ -53,6 +84,8 @@ void Mupfel::Renderer::RenderNextFrame(World& world, const Ping::Device& device,
 	Ping::CommandBuffer& current_command_buffer = commandBuffers.value()[frameIndex];
 
 	current_command_buffer.WaitForFences(device);
+
+	updateMVP(uniformBuffers[frameIndex], swapchain.value());
 
 	SyncRenderableObjects(world, device, frameIndex);
 
@@ -81,6 +114,8 @@ void Mupfel::Renderer::RenderNextFrame(World& world, const Ping::Device& device,
 	current_command_buffer.BeginRendering(swapchain.value(), image_index);
 
 	current_command_buffer.BindPipeline(pipeline.value());
+
+	current_command_buffer.BindDescriptorSet(pipeline.value(), descriptorSets.value(), frameIndex);
 
 	current_command_buffer.BindVertexBuffer(pipeline.value(), vertex_buffers[frameIndex], 0);
 

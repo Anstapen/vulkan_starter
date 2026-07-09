@@ -5,33 +5,8 @@ function download_progress(total, current)
     print("Download progress (" .. percent .. "%/100%)")
 end
 
-glm_dir = "Vendor/Sources/glm-master"
 glfw_dir = "Vendor/Sources/glfw-3.4.bin.WIN64"
 spdlog_dir = "Vendor/Sources/spdlog-1.17.0"
-
-
-function check_glm()
-    print("Checking for GLM...")
-    print(os.getcwd())
-    os.chdir("Vendor")
-    if(os.isdir("Sources") == false) then
-        os.mkdir("Sources")
-    end
-    os.chdir("Sources")
-    if(os.isdir("glm-master") == false) then
-        if(not os.isfile("glm-master.zip")) then
-            print("GLM not found, downloading from https://github.com/g-truc/glm/archive/refs/heads/master.zip")
-            local result_str, response_code = http.download("https://github.com/g-truc/glm/archive/refs/heads/master.zip", "glm-master.zip", {
-                progress = download_progress,
-                headers = { "From: Premake", "Referer: Premake" }
-            })
-        end
-        print("Unzipping to " ..  os.getcwd())
-        zip.extract("glm-master.zip", os.getcwd())
-        os.remove("glm-master.zip")
-    end
-    os.chdir("../../")
-end
 
 function check_spdlog()
     print("Checking for spdlog...")
@@ -81,7 +56,6 @@ end
 
 function build_externals()
      print("Checking external dependencies...")
-     check_glm()
      check_spdlog()
      filter "system:windows"
         check_glfw()

@@ -1,6 +1,6 @@
 #pragma once
 #include "Ping/Types.h"
-#include "glm.hpp"
+#include "glm/glm.hpp"
 
 namespace Mupfel
 {

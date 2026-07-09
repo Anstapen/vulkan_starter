@@ -18,6 +18,8 @@ struct PipelineSpecification
 	const std::string shaderFilePath;
 	/** Vertex buffer binding and attribute layout the shader expects. */
 	VertexBinding vertexLayout;
+	/** Descriptor bindings the shader expects; empty if the pipeline uses no descriptor sets. */
+	std::vector<DescriptorBinding> descriptorBindings;
 };
 
 class CommandBuffer;
@@ -25,13 +27,14 @@ class CommandBuffer;
 /**
  * An RAII-owned graphics pipeline, created via `Device::CreatePipeline`.
  *
- * @note Move-only: owns the backend pipeline (and its pipeline layout) for its lifetime. Must not
- * outlive the `SwapChain` it was created against, since the pipeline is built for that swapchain's
- * render target format.
+ * @note Move-only: owns the backend pipeline (and its descriptor set layout/pipeline layout) for its
+ * lifetime. Must not outlive the `SwapChain` it was created against, since the pipeline is built for
+ * that swapchain's render target format.
  */
 class Pipeline
 {
 	friend class CommandBuffer;
+	friend class Device;
 
 public:
 	/** Takes ownership of an existing backend pipeline. Used internally by `Device::CreatePipeline`. */

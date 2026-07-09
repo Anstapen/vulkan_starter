@@ -12,7 +12,10 @@ class VulkanCommandPool
 {
 public:
 	/** Takes ownership of an already-created command pool, tagged as `in_type`. */
-	VulkanCommandPool(Ping::QueueType in_type, vk::raii::CommandPool&& in_cmd_pool, uint32_t in_queue_family_index) noexcept;
+	VulkanCommandPool(
+		Ping::QueueType			in_type,
+		vk::raii::CommandPool&& in_cmd_pool,
+		uint32_t				in_queue_family_index) noexcept;
 	~VulkanCommandPool() noexcept = default;
 	VulkanCommandPool(const VulkanCommandPool& other) = delete;
 	/** Move-constructs from `other`, taking over its type and command pool handle. */

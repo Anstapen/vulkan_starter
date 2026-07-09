@@ -1,6 +1,7 @@
 #pragma once
 #include "Buffer.h"
 #include "CommandBuffer.h"
+#include "DescriptorSets.h"
 #include "Pipeline.h"
 #include "SwapChain.h"
 #include "Types.h"
@@ -63,6 +64,15 @@ public:
 
 	/** Allocates a GPU buffer of `size` bytes with the given usage and memory properties. */
 	Buffer CreateBuffer(size_t size, BufferUsage usage, MemoryProperty property) const;
+
+	/**
+	 * Allocates one descriptor set per entry in `uniform_buffers`, built against `pipeline`'s
+	 * descriptor set layout and pre-written to bind the matching buffer.
+	 *
+	 * @note Typically called once, e.g. right after creating the per-frame-in-flight uniform buffers
+	 * — the returned sets are reused every frame, not re-created.
+	 */
+	DescriptorSets CreateDescriptorSets(const Pipeline& pipeline, const std::vector<Buffer>& uniform_buffers) const;
 
 	/** Blocks until the device has completed all previously submitted work. */
 	void WaitForCommands() const;

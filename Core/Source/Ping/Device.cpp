@@ -27,18 +27,18 @@ Ping::Device::Device(const DeviceSpecification& specification, const Window& win
 	};
 
 	/* define the wanted extensions */
-	std::vector<const char*> wanted_device_extensions = {vk::KHRSwapchainExtensionName, vk::KHRSynchronization2ExtensionName, vk::EXTExtendedDynamicStateExtensionName};
+	std::vector<const char*> wanted_device_extensions = {
+		vk::KHRSwapchainExtensionName, vk::KHRSynchronization2ExtensionName, vk::EXTExtendedDynamicStateExtensionName};
 
-	/* define the wanted validation layers */
-	#ifndef NDEBUG
+/* define the wanted validation layers */
+#ifndef NDEBUG
 	std::vector<const char*> wanted_validation_layers = {"VK_LAYER_KHRONOS_validation"};
-	#else
-		std::vector<const char*> wanted_validation_layers = {};
-	#endif
-	
+#else
+	std::vector<const char*> wanted_validation_layers = {};
+#endif
 
-	vulkanContextPtr = std::make_unique<Backend::VulkanContext>(
-		Backend::VKManager::CreateVulkanContext(window, wanted_queues, {}, wanted_device_extensions, wanted_validation_layers));
+	vulkanContextPtr = std::make_unique<Backend::VulkanContext>(Backend::VKManager::CreateVulkanContext(
+		window, wanted_queues, {}, wanted_device_extensions, wanted_validation_layers));
 }
 
 Ping::Device::Device(Device&& other) : vulkanContextPtr(std::move(other.vulkanContextPtr)) {}
@@ -91,6 +91,23 @@ Buffer Ping::Device::CreateBuffer(size_t size, BufferUsage usage, MemoryProperty
 {
 	Backend::VulkanBuffer buffer = Backend::VKManager::CreateBuffer(*vulkanContextPtr.get(), size, usage, property);
 	return Buffer(std::move(buffer));
+}
+
+DescriptorSets
+Ping::Device::CreateDescriptorSets(const Pipeline& pipeline, const std::vector<Buffer>& uniform_buffers) const
+{
+	std::vector<const Backend::VulkanBuffer*> backend_buffers;
+	backend_buffers.reserve(uniform_buffers.size());
+
+	for (const auto& buffer : uniform_buffers)
+	{
+		backend_buffers.push_back(buffer.vulkanBufferPtr.get());
+	}
+
+	Backend::VulkanDescriptorPool pool = Backend::VKManager::CreateDescriptorSets(
+		*vulkanContextPtr.get(), *pipeline.vulkanPipelinePtr.get(), backend_buffers);
+
+	return DescriptorSets(std::move(pool));
 }
 
 void Ping::Device::WaitForCommands() const { Backend::VKManager::WaitForCommands(vulkanContextPtr->device); }

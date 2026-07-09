@@ -1,7 +1,7 @@
 #pragma once
 #include "Logger/Logger.h"
-#include "VulkanCommon.h"
 #include "Ping/Types.h"
+#include "VulkanCommon.h"
 #include <optional>
 #include <vector>
 
@@ -82,7 +82,6 @@ private:
 	/** Heap-allocated, null-terminated copies of each added name. */
 	std::vector<char*> validation_layers;
 };
-
 
 /** A single requested queue, identified by role rather than raw Vulkan flags. */
 struct VKQueueRequest

@@ -6,10 +6,20 @@
 #include "Application/World.h"
 #include "Logger/Logger.h"
 #include "Ping/Buffer.h"
+#include "Ping/DescriptorSets.h"
 #include "Ping/Device.h"
+
+#include "glm/glm.hpp"
 
 namespace Mupfel
 {
+
+struct UniformBufferObject
+{
+	glm::mat4 model;
+	glm::mat4 view;
+	glm::mat4 proj;
+};
 
 /**
  * Drives per-frame rendering on top of the `Ping` RHI: owns the swapchain, pipeline, command
@@ -39,6 +49,11 @@ private:
 	/** Copies every `Transform` in `world` into `vertex_buffers[frame_index]`'s mapped memory and flushes it. */
 	void SyncRenderableObjects(World& world, const Ping::Device& device, uint32_t frame_index);
 
+	/**
+	 * Update the Model-View-Projection matricies for a specific uniform buffer.
+	 */
+	void updateMVP(Ping::Buffer& uniform_buffer, Ping::SwapChain &swapchain);
+
 private:
 	/** Number of frames pipelined in parallel. */
 	static constexpr uint32_t frames_in_flight = 2;
@@ -56,6 +71,10 @@ private:
 	std::vector<Ping::Buffer> vertex_buffers;
 	/** One device-local index buffer */
 	std::optional<Ping::Buffer> index_buffer;
+	/** One uniform buffer per frame in flight */
+	std::vector<Ping::Buffer> uniformBuffers;
+	/** Descriptor sets */
+	std::optional<Ping::DescriptorSets> descriptorSets;
 };
 
 } // namespace Mupfel

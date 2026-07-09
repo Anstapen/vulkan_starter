@@ -55,8 +55,18 @@ void Backend::VulkanCommandBuffer::BindVertexBuffer(
 	commandBuffer.bindVertexBuffers(binding, *buffer.buffer, {0});
 }
 
-void Backend::VulkanCommandBuffer::BindIndexBuffer(const VulkanPipeline& pipeline, const VulkanBuffer& buffer) const {
+void Backend::VulkanCommandBuffer::BindIndexBuffer(const VulkanPipeline& pipeline, const VulkanBuffer& buffer) const
+{
 	commandBuffer.bindIndexBuffer(*buffer.buffer, 0, vk::IndexType::eUint16);
+}
+
+void Backend::VulkanCommandBuffer::BindDescriptorSet(
+	const VulkanPipeline&		pipeline,
+	const VulkanDescriptorPool& descriptor_pool,
+	uint32_t					frame_index) const
+{
+	commandBuffer.bindDescriptorSets(
+		vk::PipelineBindPoint::eGraphics, *pipeline.pipelineLayout, 0, *descriptor_pool.sets[frame_index], {});
 }
 
 void VulkanCommandBuffer::Draw(uint32_t vertex_count) const { commandBuffer.draw(vertex_count, 1, 0, 0); }

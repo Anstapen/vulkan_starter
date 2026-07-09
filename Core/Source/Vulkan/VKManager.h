@@ -8,6 +8,7 @@
 #include "VulkanCommandPool.h"
 #include "VulkanCommon.h"
 #include "VulkanContext.h"
+#include "VulkanDescriptorPool.h"
 #include "VulkanPipeline.h"
 #include "VulkanQueue.h"
 #include "VulkanSwapChain.h"
@@ -46,11 +47,11 @@ public:
 	 * family isn't available, or if a requested graphics queue lacks presentation support.
 	 */
 	static VulkanContext CreateVulkanContext(
-		const Window&								window,
-		const std::vector<VKQueueRequest>&          wanted_queues,
-		const std::vector<const char*>&				wanted_instance_extensions,
-		const std::vector<const char*>&				wanted_device_extensions,
-		const std::vector<const char*>&				wanted_validation_layers);
+		const Window&					   window,
+		const std::vector<VKQueueRequest>& wanted_queues,
+		const std::vector<const char*>&	   wanted_instance_extensions,
+		const std::vector<const char*>&	   wanted_device_extensions,
+		const std::vector<const char*>&	   wanted_validation_layers);
 
 	/**
 	 * Creates a swapchain sized to `window`'s current framebuffer, preferring `eB8G8R8A8Srgb`/`eSrgbNonlinear`
@@ -75,6 +76,18 @@ public:
 	 */
 	static VulkanCommandBuffers
 	CreateCommandBuffers(const VulkanContext& context, Ping::QueueType type, uint32_t num_buffers);
+
+	/**
+	 * Allocates a descriptor pool sized for exactly `uniform_buffers.size()` sets of `pipeline`'s
+	 * descriptor set layout, allocates that many sets, and writes each set's binding 0 to point at
+	 * the matching entry of `uniform_buffers` as a uniform buffer.
+	 *
+	 * @throws std::runtime_error if `uniform_buffers` is empty.
+	 */
+	static VulkanDescriptorPool CreateDescriptorSets(
+		const VulkanContext&					context,
+		const VulkanPipeline&					pipeline,
+		const std::vector<const VulkanBuffer*>& uniform_buffers);
 
 	/**
 	 * Creates a buffer of `size` bytes with `usage`, backed by memory satisfying `property`; maps the
@@ -147,9 +160,9 @@ private:
 	 * @throws std::runtime_error if a queue family index can't be resolved for one of `wanted_queues`.
 	 */
 	static void CreateCommandPools(
-		const vk::raii::Device&						device,
-		const std::vector<VKResolvedQueue>&         resolved_queues,
-		std::vector<VulkanCommandPool>&				command_pools);
+		const vk::raii::Device&				device,
+		const std::vector<VKResolvedQueue>& resolved_queues,
+		std::vector<VulkanCommandPool>&		command_pools);
 
 	/**
 	 * Installs `user_callback` as a debug messenger for warning/error validation and general/performance
@@ -167,11 +180,11 @@ private:
 	 * queue doesn't support presentation to `surface`.
 	 */
 	static vk::raii::Device CreateLogicalDevice(
-		const vk::raii::PhysicalDevice&				phys_device,
-		VulkanQueues&								queues,
-		const std::vector<VKResolvedQueue>&         wanted_queues,
-		const std::vector<const char*>&				wanted_device_extensions,
-		vk::raii::SurfaceKHR&						surface);
+		const vk::raii::PhysicalDevice&		phys_device,
+		VulkanQueues&						queues,
+		const std::vector<VKResolvedQueue>& wanted_queues,
+		const std::vector<const char*>&		wanted_device_extensions,
+		vk::raii::SurfaceKHR&				surface);
 
 	/** Prefers `eB8G8R8A8Srgb`/`eSrgbNonlinear` from `availableFormats`, falling back to the first available format. */
 	static vk::SurfaceFormatKHR SelectSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats);
@@ -204,6 +217,14 @@ private:
 	 */
 	static uint32_t
 	findMemoryType(const vk::raii::PhysicalDevice& phys_devicee, uint32_t type_filter, Ping::MemoryProperty property);
+
+	/**
+	 * Builds the descriptor set layout for `bindings` (used by `CreatePipeline`). A pipeline with no
+	 * descriptor bindings still gets a valid, zero-binding layout, keeping pipeline-layout creation
+	 * uniform regardless of whether the pipeline uses descriptor sets.
+	 */
+	static vk::raii::DescriptorSetLayout
+	CreateDescriptorSetLayout(const VulkanContext& context, const std::vector<Ping::DescriptorBinding>& bindings);
 
 private:
 	/** Set by `Init`; guards it from running twice. */

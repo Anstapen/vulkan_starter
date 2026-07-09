@@ -2,6 +2,7 @@
 #include "Window/Window.h"
 #include <cstdint>
 #include <memory>
+#include <tuple>
 
 namespace Backend
 {
@@ -59,6 +60,8 @@ public:
 	 * Blocks (pumping window events) while the framebuffer size is zero, e.g. while minimized.
 	 */
 	void Recreate(const Device& device, const Window& window, uint32_t frames_in_flight);
+
+	std::tuple<uint32_t, uint32_t> GetExtent() const;
 
 private:
 	/** Owning pointer to the backend swapchain. */

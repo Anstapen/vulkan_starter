@@ -39,7 +39,7 @@ public:
 
 	/**
 	 * Resize the buffer to \a new_size.
-	 * 
+	 *
 	 * @warning The buffer needs to have the BufferUsage::TransferSrc flag!
 	 */
 	void Resize(const Device& device, uint64_t new_size);
@@ -51,10 +51,10 @@ public:
 	void* GetMappedPtr();
 
 	/**
-	* Copy given host data to a device-local GPU buffer using an intermediate staging buffer.
-	* 
-	* @warning This function will throw an error if it is used on a buffer that is not device local!
-	*/
+	 * Copy given host data to a device-local GPU buffer using an intermediate staging buffer.
+	 *
+	 * @warning This function will throw an error if it is used on a buffer that is not device local!
+	 */
 	void CopyHostData(const Device& device, const void* src, uint64_t size);
 
 private:

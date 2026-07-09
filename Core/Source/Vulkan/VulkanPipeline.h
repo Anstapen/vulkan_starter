@@ -14,18 +14,19 @@ namespace Backend
 class VulkanPipeline
 {
 public:
-	/** Takes ownership of an already-created pipeline, shader module, and pipeline layout. */
+	/** Takes ownership of an already-created pipeline, shader module, descriptor set layout, and pipeline layout. */
 	VulkanPipeline(
-		vk::raii::Pipeline&&	   in_pipeline,
-		vk::raii::ShaderModule&&   in_shaders,
-		vk::raii::PipelineLayout&& in_pipeline_layout) noexcept;
+		vk::raii::Pipeline&&			in_pipeline,
+		vk::raii::ShaderModule&&		in_shaders,
+		vk::raii::DescriptorSetLayout&& in_descriptor_set_layout,
+		vk::raii::PipelineLayout&&		in_pipeline_layout) noexcept;
 	/** Constructs an empty (null-handle) pipeline; not usable until move-assigned a real one. */
 	VulkanPipeline() noexcept;
 	VulkanPipeline(const VulkanPipeline& other) = delete;
-	/** Move-constructs from `other`, taking over its pipeline, shader module, and layout. */
+	/** Move-constructs from `other`, taking over its pipeline, shader module, and layouts. */
 	VulkanPipeline(VulkanPipeline&& other) noexcept;
 	VulkanPipeline& operator=(const VulkanPipeline& other) = delete;
-	/** Move-assigns from `other`, taking over its pipeline, shader module, and layout. */
+	/** Move-assigns from `other`, taking over its pipeline, shader module, and layouts. */
 	VulkanPipeline& operator=(VulkanPipeline&& other) noexcept;
 	~VulkanPipeline();
 
@@ -34,6 +35,8 @@ public:
 	vk::raii::Pipeline pipeline;
 	/** Shader module the pipeline was built from. */
 	vk::raii::ShaderModule shaders;
+	/** Layout of shader-visible resources the pipeline's descriptor sets are built against. */
+	vk::raii::DescriptorSetLayout descriptorSetLayout;
 	/** Layout (descriptor sets/push constants) the pipeline was built with. */
 	vk::raii::PipelineLayout pipelineLayout;
 };

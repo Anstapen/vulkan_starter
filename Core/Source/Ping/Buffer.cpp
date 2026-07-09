@@ -1,6 +1,6 @@
 #include "Buffer.h"
-#include "Vulkan/VulkanBuffer.h"
 #include "Device.h"
+#include "Vulkan/VulkanBuffer.h"
 
 using namespace Ping;
 

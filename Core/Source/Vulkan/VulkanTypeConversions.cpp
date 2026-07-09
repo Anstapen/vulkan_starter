@@ -43,10 +43,13 @@ vk::BufferUsageFlags Backend::ToVulkan(Ping::BufferUsage usage)
 		result |= vk::BufferUsageFlagBits::eVertexBuffer;
 	if (Ping::HasFlag(usage, Ping::BufferUsage::IndexBuffer))
 		result |= vk::BufferUsageFlagBits::eIndexBuffer;
+	if (Ping::HasFlag(usage, Ping::BufferUsage::UniformBuffer))
+		result |= vk::BufferUsageFlagBits::eUniformBuffer;
 	return result;
 }
 
-vk::CommandBufferUsageFlags Backend::ToVulkan(Ping::CommandBufferUsage usage) { 
+vk::CommandBufferUsageFlags Backend::ToVulkan(Ping::CommandBufferUsage usage)
+{
 	vk::CommandBufferUsageFlags result{};
 	if (Ping::HasFlag(usage, Ping::CommandBufferUsage::OneTimeSubmit))
 		result |= vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
@@ -81,4 +84,24 @@ vk::Format Backend::ToVulkan(Ping::VertexFormat format)
 		return vk::Format::eR32G32B32A32Sfloat;
 	}
 	throw std::runtime_error("Unhandled Ping::VertexFormat");
+}
+
+vk::ShaderStageFlags Backend::ToVulkan(Ping::ShaderStage stage)
+{
+	vk::ShaderStageFlags result{};
+	if (Ping::HasFlag(stage, Ping::ShaderStage::Vertex))
+		result |= vk::ShaderStageFlagBits::eVertex;
+	if (Ping::HasFlag(stage, Ping::ShaderStage::Fragment))
+		result |= vk::ShaderStageFlagBits::eFragment;
+	return result;
+}
+
+vk::DescriptorType Backend::ToVulkan(Ping::DescriptorType type)
+{
+	switch (type)
+	{
+	case Ping::DescriptorType::UniformBuffer:
+		return vk::DescriptorType::eUniformBuffer;
+	}
+	throw std::runtime_error("Unhandled Ping::DescriptorType");
 }

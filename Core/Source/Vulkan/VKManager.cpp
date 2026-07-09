@@ -97,6 +97,28 @@ VKManager::CreateSwapChain(const VulkanContext& context, const Window& window, u
 		context.device, std::move(swap_chain), swapChainSurfaceFormat, swapChainExtent, frames_in_flight);
 }
 
+vk::raii::DescriptorSetLayout Backend::VKManager::CreateDescriptorSetLayout(
+	const VulkanContext&						context,
+	const std::vector<Ping::DescriptorBinding>& bindings)
+{
+	std::vector<vk::DescriptorSetLayoutBinding> layoutBindings;
+	layoutBindings.reserve(bindings.size());
+
+	for (const auto& binding : bindings)
+	{
+		layoutBindings.push_back(
+			{.binding = binding.binding,
+			 .descriptorType = ToVulkan(binding.type),
+			 .descriptorCount = 1,
+			 .stageFlags = ToVulkan(binding.stageFlags)});
+	}
+
+	vk::DescriptorSetLayoutCreateInfo layoutInfo{
+		.bindingCount = static_cast<uint32_t>(layoutBindings.size()), .pBindings = layoutBindings.data()};
+
+	return vk::raii::DescriptorSetLayout(context.device, layoutInfo);
+}
+
 VulkanPipeline Backend::VKManager::CreatePipeline(
 	const VulkanContext&			   context,
 	const Ping::PipelineSpecification& specification,
@@ -142,11 +164,11 @@ VulkanPipeline Backend::VKManager::CreatePipeline(
 
 	vk::PipelineInputAssemblyStateCreateInfo inputAssembly{.topology = vk::PrimitiveTopology::eTriangleList};
 	vk::Viewport							 viewport{0.0f,
-													  0.0f,
-													  static_cast<float>(swapchain.swapChainExtent.width),
-													  static_cast<float>(swapchain.swapChainExtent.height),
-													  0.0f,
-													  1.0f};
+						  0.0f,
+						  static_cast<float>(swapchain.swapChainExtent.width),
+						  static_cast<float>(swapchain.swapChainExtent.height),
+						  0.0f,
+						  1.0f};
 	vk::PipelineViewportStateCreateInfo		 viewportState{.viewportCount = 1, .scissorCount = 1};
 	vk::Rect2D								 scissor{vk::Offset2D{0, 0}, swapchain.swapChainExtent};
 
@@ -156,7 +178,7 @@ VulkanPipeline Backend::VKManager::CreatePipeline(
 		.rasterizerDiscardEnable = vk::False,
 		.polygonMode = vk::PolygonMode::eFill,
 		.cullMode = vk::CullModeFlagBits::eBack,
-		.frontFace = vk::FrontFace::eClockwise,
+		.frontFace = vk::FrontFace::eCounterClockwise,
 		.depthBiasEnable = vk::False,
 		.lineWidth = 1.0f};
 	/* Multisampling */
@@ -181,11 +203,13 @@ VulkanPipeline Backend::VKManager::CreatePipeline(
 		.attachmentCount = 1,
 		.pAttachments = &colorBlendAttachment};
 
-	vk::raii::PipelineLayout pipelineLayout = nullptr;
+	vk::raii::DescriptorSetLayout descriptorSetLayout =
+		CreateDescriptorSetLayout(context, specification.descriptorBindings);
 
-	vk::PipelineLayoutCreateInfo pipelineLayoutInfo{.setLayoutCount = 0, .pushConstantRangeCount = 0};
+	vk::PipelineLayoutCreateInfo pipelineLayoutInfo{
+		.setLayoutCount = 1, .pSetLayouts = &*descriptorSetLayout, .pushConstantRangeCount = 0};
 
-	pipelineLayout = vk::raii::PipelineLayout(context.device, pipelineLayoutInfo);
+	vk::raii::PipelineLayout pipelineLayout(context.device, pipelineLayoutInfo);
 
 	vk::StructureChain<vk::GraphicsPipelineCreateInfo, vk::PipelineRenderingCreateInfo> pipelineCreateInfoChain = {
 		{.stageCount = 2,
@@ -204,7 +228,65 @@ VulkanPipeline Backend::VKManager::CreatePipeline(
 	auto graphicsPipeline =
 		vk::raii::Pipeline(context.device, nullptr, pipelineCreateInfoChain.get<vk::GraphicsPipelineCreateInfo>());
 
-	return VulkanPipeline(std::move(graphicsPipeline), std::move(shaderModule), std::move(pipelineLayout));
+	return VulkanPipeline(
+		std::move(graphicsPipeline), std::move(shaderModule), std::move(descriptorSetLayout),
+		std::move(pipelineLayout));
+}
+
+VulkanDescriptorPool Backend::VKManager::CreateDescriptorSets(
+	const VulkanContext&					context,
+	const VulkanPipeline&					pipeline,
+	const std::vector<const VulkanBuffer*>& uniform_buffers)
+{
+	if (uniform_buffers.empty())
+	{
+		throw std::runtime_error("Tried to create descriptor sets with no uniform buffers!");
+	}
+
+	uint32_t set_count = static_cast<uint32_t>(uniform_buffers.size());
+
+	vk::DescriptorPoolSize poolSize{.type = vk::DescriptorType::eUniformBuffer, .descriptorCount = set_count};
+
+	vk::DescriptorPoolCreateInfo poolInfo{
+		/* Individual sets must be freeable, since ~VulkanDescriptorPool frees them one at a time. */
+		.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
+		.maxSets = set_count,
+		.poolSizeCount = 1,
+		.pPoolSizes = &poolSize};
+
+	vk::raii::DescriptorPool pool(context.device, poolInfo);
+
+	/* vkAllocateDescriptorSets wants one layout handle per set, even though they're all identical. */
+	std::vector<vk::DescriptorSetLayout> layouts(set_count, *pipeline.descriptorSetLayout);
+	vk::DescriptorSetAllocateInfo		 allocInfo{
+			   .descriptorPool = pool, .descriptorSetCount = set_count, .pSetLayouts = layouts.data()};
+
+	vk::raii::DescriptorSets rawSets(context.device, allocInfo);
+
+	for (uint32_t i = 0; i < set_count; i++)
+	{
+		vk::DescriptorBufferInfo bufferInfo{
+			.buffer = *uniform_buffers[i]->buffer, .offset = 0, .range = uniform_buffers[i]->Size()};
+
+		vk::WriteDescriptorSet write{
+			.dstSet = rawSets[i],
+			.dstBinding = 0,
+			.dstArrayElement = 0,
+			.descriptorCount = 1,
+			.descriptorType = vk::DescriptorType::eUniformBuffer,
+			.pBufferInfo = &bufferInfo};
+
+		context.device.updateDescriptorSets(write, {});
+	}
+
+	std::vector<vk::raii::DescriptorSet> sets;
+	sets.reserve(set_count);
+	for (auto& set : rawSets)
+	{
+		sets.push_back(std::move(set));
+	}
+
+	return VulkanDescriptorPool(std::move(pool), std::move(sets));
 }
 
 VulkanCommandBuffers
@@ -628,9 +710,8 @@ vk::SurfaceFormatKHR Backend::VKManager::SelectSurfaceFormat(const std::vector<v
 
 vk::PresentModeKHR Backend::VKManager::SelectPresentMode(const std::vector<vk::PresentModeKHR>& availablePresentModes)
 {
-	assert(
-		std::ranges::any_of(
-			availablePresentModes, [](auto presentMode) { return presentMode == vk::PresentModeKHR::eFifo; }));
+	assert(std::ranges::any_of(
+		availablePresentModes, [](auto presentMode) { return presentMode == vk::PresentModeKHR::eFifo; }));
 	return std::ranges::any_of(
 			   availablePresentModes,
 			   [](const vk::PresentModeKHR value) { return vk::PresentModeKHR::eMailbox == value; })

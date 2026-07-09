@@ -48,9 +48,9 @@ public:
 
 	/**
 	 * Resize the buffer to \a new_size.
-	 * 
+	 *
 	 * @warning If \a new_size that is smaller than the current size, the function returns immediately!
-	 * 
+	 *
 	 * @warning The function currently throws when an attempt to resize a device-local buffer is made!
 	 */
 	void Resize(const VulkanContext& context, uint64_t new_size);
@@ -63,10 +63,10 @@ public:
 	void* GetMappedPtr();
 
 	/**
-	* Copies the given host memory into the device local GPU buffer.
-	* 
-	* @warning This function will throw an error if the buffer is not device local!
-	*/
+	 * Copies the given host memory into the device local GPU buffer.
+	 *
+	 * @warning This function will throw an error if the buffer is not device local!
+	 */
 	void CopyHostData(const VulkanContext& context, const void* src, uint64_t size);
 
 private:
@@ -75,9 +75,9 @@ private:
 	/** Device memory bound to `buffer`. */
 	vk::raii::DeviceMemory memory;
 	/** The buffer usage type used to create that buffer. */
-	Ping::BufferUsage	   bufferUsage;
+	Ping::BufferUsage bufferUsage;
 	/** The memory property type used to allocate the underlying memory. */
-	Ping::MemoryProperty   memoryProperty;
+	Ping::MemoryProperty memoryProperty;
 	/** Mapped pointer into `memory`, or `nullptr` if not host-visible. */
 	void* data;
 	/** Size of the buffer in bytes. */

@@ -64,6 +64,15 @@ void Ping::CommandBuffer::BindIndexBuffer(const Pipeline& pipeline, const Buffer
 	vulkanCommandBufferPtr->BindIndexBuffer(*pipeline.vulkanPipelinePtr.get(), *buffer.vulkanBufferPtr.get());
 }
 
+void Ping::CommandBuffer::BindDescriptorSet(
+	const Pipeline&		  pipeline,
+	const DescriptorSets& descriptor_sets,
+	uint32_t			  frame_index) const
+{
+	vulkanCommandBufferPtr->BindDescriptorSet(
+		*pipeline.vulkanPipelinePtr.get(), *descriptor_sets.vulkanDescriptorPoolPtr.get(), frame_index);
+}
+
 void Ping::CommandBuffer::Submit(
 	const Device&	 device,
 	const SwapChain& swapchain,

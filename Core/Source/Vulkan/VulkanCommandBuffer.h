@@ -1,6 +1,7 @@
 #pragma once
 #include "VulkanBuffer.h"
 #include "VulkanCommon.h"
+#include "VulkanDescriptorPool.h"
 #include "VulkanPipeline.h"
 #include "VulkanSwapChain.h"
 #include <vector>
@@ -22,9 +23,7 @@ public:
 	 * `in_draw_fence` should be created already signaled, so the first `WaitForFences` for this
 	 * slot doesn't block waiting on a submission that never happened.
 	 */
-	VulkanCommandBuffer(
-		vk::raii::CommandBuffer&& in_cmd_buffer,
-		vk::raii::Fence&&		  in_draw_fence) noexcept;
+	VulkanCommandBuffer(vk::raii::CommandBuffer&& in_cmd_buffer, vk::raii::Fence&& in_draw_fence) noexcept;
 	VulkanCommandBuffer(const VulkanCommandBuffer& other) = delete;
 	/** Move-constructs from `other`, taking over its command buffer and fence. */
 	VulkanCommandBuffer(VulkanCommandBuffer&& other) noexcept;
@@ -54,6 +53,12 @@ public:
 
 	/** Binds `buffer` as index buffer. */
 	void BindIndexBuffer(const VulkanPipeline& pipeline, const VulkanBuffer& buffer) const;
+
+	/** Binds `descriptor_pool`'s set for `frame_index` at the graphics bind point, using `pipeline`'s layout. */
+	void BindDescriptorSet(
+		const VulkanPipeline&		pipeline,
+		const VulkanDescriptorPool& descriptor_pool,
+		uint32_t					frame_index) const;
 
 	/** Records a non-indexed draw of `vertex_count` vertices, 1 instance, starting at vertex/instance 0. */
 	void Draw(uint32_t vertex_count) const;

@@ -1,9 +1,9 @@
 #include "VKUtil.h"
+#include <bit>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <vector>
-#include <bit>
 
 Backend::VKExtensions::~VKExtensions()
 {
@@ -155,7 +155,6 @@ std::vector<VkLayerProperties> Backend::VKValidationLayers::GetAvailableValidati
 
 	return available_layers;
 }
-
 
 vk::QueueFlags Backend::VKQueueFamilyAllocator::RequiredFlags(Ping::QueueType type)
 {

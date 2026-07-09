@@ -116,7 +116,9 @@ enum class BufferUsage : uint32_t
 	/** Buffer can be the destination of a transfer/copy operation. */
 	TransferDst = 1 << 2,
 	/** Buffer can be bound as an index buffer. */
-	IndexBuffer = 1 << 3
+	IndexBuffer = 1 << 3,
+	/** Buffer can be bound as a uniform buffer object (UBO) */
+	UniformBuffer = 1 << 4
 };
 
 /** Combines two BufferUsage flags. See the `Ping/Types.h`. */
@@ -228,7 +230,50 @@ struct VertexBinding
 	std::vector<VertexAttribute> attributes;
 };
 
+/**
+ * Bitmask mirror of `vk::ShaderStageFlags`, restricted to the stages this RHI's pipelines support.
+ * Combine values with `operator|`.
+ */
+enum class ShaderStage : uint32_t
+{
+	None = 0,
+	/** The vertex shader stage. */
+	Vertex = 1 << 0,
+	/** The fragment shader stage. */
+	Fragment = 1 << 1,
+};
 
+/** Combines two ShaderStage flags. See the `Ping/Types.h` bitmask-enum pattern documented in CLAUDE.md. */
+constexpr ShaderStage operator|(ShaderStage lhs, ShaderStage rhs)
+{
+	return static_cast<ShaderStage>(static_cast<uint32_t>(lhs) | static_cast<uint32_t>(rhs));
+}
 
+/** Returns whether every bit set in `flag` is also set in `value`. */
+constexpr bool HasFlag(ShaderStage value, ShaderStage flag)
+{
+	return (static_cast<uint32_t>(value) & static_cast<uint32_t>(flag)) != 0;
+}
+
+/**
+ * Type of resource a `DescriptorBinding` exposes to shaders, mirroring the subset of
+ * `vk::DescriptorType` this RHI currently supports.
+ */
+enum class DescriptorType
+{
+	/** A uniform buffer object, bound via a `Buffer` created with `BufferUsage::UniformBuffer`. */
+	UniformBuffer,
+};
+
+/** Describes one shader-visible binding slot within a pipeline's descriptor set layout. */
+struct DescriptorBinding
+{
+	/** Binding index, matching `layout(binding = N)` in the shader. */
+	uint32_t binding;
+	/** Resource type exposed at this binding. */
+	DescriptorType type;
+	/** Shader stage(s) that read this binding. */
+	ShaderStage stageFlags;
+};
 
 } // namespace Ping

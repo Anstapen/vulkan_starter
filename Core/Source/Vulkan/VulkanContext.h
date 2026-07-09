@@ -53,11 +53,11 @@ private:
 	 * command pools. Used internally by `VKManager::CreateVulkanContext`.
 	 */
 	VulkanContext(
-		vk::raii::Instance&&		     in_instance,
-		vk::raii::PhysicalDevice	     in_phys_device,
-		vk::raii::Device&&			     in_device,
-		std::vector<VulkanQueue>	     in_queues,
-		vk::raii::SurfaceKHR		     in_surface,
+		vk::raii::Instance&&			 in_instance,
+		vk::raii::PhysicalDevice		 in_phys_device,
+		vk::raii::Device&&				 in_device,
+		std::vector<VulkanQueue>		 in_queues,
+		vk::raii::SurfaceKHR			 in_surface,
 		std::vector<VulkanCommandPool>	 in_command_pools,
 		vk::raii::DebugUtilsMessengerEXT in_debug_messenger);
 };

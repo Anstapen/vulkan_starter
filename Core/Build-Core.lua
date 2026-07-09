@@ -18,7 +18,6 @@ project "Core"
    {
    "Source",
    "Source/MupfelDeps",
-   "../" .. glm_dir .."/glm",
    vulkan_sdk_path .. "/Include",
    "../" .. glfw_dir .."/include",
    "../" .. spdlog_dir .. "/include"

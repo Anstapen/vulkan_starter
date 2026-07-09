@@ -80,11 +80,11 @@ void Backend::VulkanBuffer::Resize(const VulkanContext& context, uint64_t new_si
 			throw std::runtime_error("Tried to resize a device local buffer that is missing the TransferSrc flag!");
 		}
 
-		VulkanBuffer new_buffer = VKManager::CreateBuffer(context, new_size, bufferUsage | Ping::BufferUsage::TransferDst, memoryProperty);
+		VulkanBuffer new_buffer =
+			VKManager::CreateBuffer(context, new_size, bufferUsage | Ping::BufferUsage::TransferDst, memoryProperty);
 		VKManager::CopyBuffer(context, this->buffer, new_buffer.buffer, this->size);
 
 		*this = std::move(new_buffer);
-
 	}
 }
 

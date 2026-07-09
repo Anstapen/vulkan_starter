@@ -32,4 +32,10 @@ vk::MemoryPropertyFlags ToVulkan(Ping::MemoryProperty property);
 
 /** @note Aborts via `assert` if `format` has no known `vk::Format` mapping. */
 vk::Format ToVulkan(Ping::VertexFormat format);
+
+/** Bitwise-ORs together the `vk::ShaderStageFlagBits` for every flag set in `stage`. */
+vk::ShaderStageFlags ToVulkan(Ping::ShaderStage stage);
+
+/** @throws std::runtime_error if `type` has no known `vk::DescriptorType` mapping. */
+vk::DescriptorType ToVulkan(Ping::DescriptorType type);
 } // namespace Backend

@@ -1,8 +1,8 @@
 #pragma once
 #include "Ping/Types.h"
 #include "VulkanCommon.h"
-#include <vector>
 #include <cstdint>
+#include <vector>
 
 namespace Backend
 {
@@ -24,10 +24,10 @@ public:
 	VulkanQueue& operator=(const VulkanQueue& other) = delete;
 	/** Move-assigns from `other`, taking over its type and queue handle. */
 	VulkanQueue& operator=(VulkanQueue&& other) noexcept;
-	/** Which queue type this queue was created to satisfy. */	
+	/** Which queue type this queue was created to satisfy. */
 	Ping::QueueType type;
 	/** The family index of this queue */
-	uint32_t		familyIndex;
+	uint32_t familyIndex;
 	/** The underlying Vulkan queue. */
 	vk::raii::Queue queue;
 };

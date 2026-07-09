@@ -1,5 +1,6 @@
 #pragma once
 #include "Buffer.h"
+#include "DescriptorSets.h"
 #include "Pipeline.h"
 #include "SwapChain.h"
 #include "Types.h"
@@ -62,6 +63,9 @@ public:
 
 	/** Binds `buffer` as the index buffer for `pipeline`'. */
 	void BindIndexBuffer(const Pipeline& pipeline, const Buffer& buffer) const;
+
+	/** Binds `descriptor_sets`' set for `frame_index` at the graphics bind point for `pipeline`. */
+	void BindDescriptorSet(const Pipeline& pipeline, const DescriptorSets& descriptor_sets, uint32_t frame_index) const;
 
 	/**
 	 * Submits the recorded commands to the device's graphics queue. `frameIndex` is this command

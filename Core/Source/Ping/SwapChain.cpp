@@ -45,3 +45,9 @@ void Ping::SwapChain::Recreate(const Device& device, const Window& window, uint3
 	vulkanSwapChainPtr = std::make_unique<Backend::VulkanSwapChain>(
 		Backend::VKManager::CreateSwapChain(*device.vulkanContextPtr.get(), window, frames_in_flight));
 }
+
+std::tuple<uint32_t, uint32_t> Ping::SwapChain::GetExtent() const
+{
+	return std::tuple<uint32_t, uint32_t>(
+		vulkanSwapChainPtr->swapChainExtent.width, vulkanSwapChainPtr->swapChainExtent.height);
+}
