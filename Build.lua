@@ -26,5 +26,6 @@ group "Core"
 group ""
 
 include "Build-spdlog.lua"
+include "Build-ImGui.lua"
 
 include "App/Build-App.lua"

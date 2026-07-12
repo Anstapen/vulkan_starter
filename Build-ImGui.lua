@@ -1,30 +1,27 @@
-project "Core"
+project "imgui"
    kind "StaticLib"
    language "C++"
    cppdialect "C++20"
    targetdir "Binaries/%{cfg.buildcfg}"
    staticruntime "off"
 
-   files { "Source/**.h", "Source/**.cpp" }
+   files
+   {
+      imgui_dir .. "/*.h",
+      imgui_dir .. "/*.cpp",
+      imgui_dir .. "/backends/imgui_impl_glfw.h",
+      imgui_dir .. "/backends/imgui_impl_glfw.cpp"
+   }
 
-   targetdir ("../Binaries/" .. OutputDir .. "/%{prj.name}")
-   objdir ("../Binaries/Intermediates/" .. OutputDir .. "/%{prj.name}")
-   
-   libdirs {"../Binaries/Dependencies/%{cfg.buildcfg}"}
-   
-   libdirs {vulkan_sdk_path .. "/Lib"}
-   
    includedirs
    {
-   "Source",
-   "Source/MupfelDeps",
-   vulkan_sdk_path .. "/Include",
-   "../" .. glfw_dir .."/include",
-   "../" .. spdlog_dir .. "/include",
-   "../" .. stb_dir,
-   "../" .. imgui_dir,
-   "../" .. imgui_dir .. "/backends"
+      imgui_dir,
+      imgui_dir .. "/backends",
+      glfw_dir .. "/include"
    }
+
+   targetdir ("Binaries/" .. OutputDir .. "/%{prj.name}")
+   objdir ("Binaries/Intermediates/" .. OutputDir .. "/%{prj.name}")
 
    filter "action:vs*"
        defines{"_WINSOCK_DEPRECATED_NO_WARNINGS", "_CRT_SECURE_NO_WARNINGS"}
@@ -38,20 +35,15 @@ project "Core"
        defines { "DEBUG" }
        runtime "Debug"
        symbols "On"
-       warnings "Extra"
 
    filter "configurations:Release"
        defines { "RELEASE" }
        runtime "Release"
        optimize "On"
        symbols "On"
-       fatalwarnings {"All"}
-       warnings "Extra"
 
    filter "configurations:Dist"
        defines { "DIST" }
        runtime "Release"
        optimize "On"
        symbols "Off"
-       fatalwarnings {"All"}
-       warnings "Extra"

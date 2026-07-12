@@ -102,6 +102,58 @@ vk::DescriptorType Backend::ToVulkan(Ping::DescriptorType type)
 	{
 	case Ping::DescriptorType::UniformBuffer:
 		return vk::DescriptorType::eUniformBuffer;
+	case Ping::DescriptorType::CombinedImageSampler:
+		return vk::DescriptorType::eCombinedImageSampler;
 	}
 	throw std::runtime_error("Unhandled Ping::DescriptorType");
+}
+
+vk::ImageUsageFlags Backend::ToVulkan(Ping::ImageUsage usage)
+{
+	vk::ImageUsageFlags result{};
+	if (Ping::HasFlag(usage, Ping::ImageUsage::Sampled))
+		result |= vk::ImageUsageFlagBits::eSampled;
+	return result;
+}
+
+vk::Filter Backend::ToVulkan(Ping::SamplerFilterMode filter)
+{
+	switch (filter)
+	{
+	case Ping::SamplerFilterMode::Linear:
+		return vk::Filter::eLinear;
+	case Ping::SamplerFilterMode::Nearest:
+		return vk::Filter::eNearest;
+	}
+	throw std::runtime_error("Unhandled Ping::SamplerFilterMode");
+}
+
+vk::SamplerMipmapMode Backend::ToVulkan(Ping::SamplerMipMapMode mipmap_mode)
+{
+	switch (mipmap_mode)
+	{
+	case Ping::SamplerMipMapMode::Linear:
+		return vk::SamplerMipmapMode::eLinear;
+	case Ping::SamplerMipMapMode::Nearest:
+		return vk::SamplerMipmapMode::eNearest;
+	}
+	throw std::runtime_error("Unhandled Ping::SamplerMipMapMode");
+}
+
+vk::SamplerAddressMode Backend::ToVulkan(Ping::SamplerAddressMode address_mode)
+{
+	switch (address_mode)
+	{
+	case Ping::SamplerAddressMode::Repeat:
+		return vk::SamplerAddressMode::eRepeat;
+	case Ping::SamplerAddressMode::MirroredRepeat:
+		return vk::SamplerAddressMode::eMirroredRepeat;
+	case Ping::SamplerAddressMode::ClampToEdge:
+		return vk::SamplerAddressMode::eClampToEdge;
+	case Ping::SamplerAddressMode::MirrorClampToEdge:
+		return vk::SamplerAddressMode::eMirrorClampToEdge;
+	case Ping::SamplerAddressMode::ClampToBorder:
+		return vk::SamplerAddressMode::eClampToBorder;
+	}
+	throw std::runtime_error("Unhandled Ping::SamplerAddressMode");
 }

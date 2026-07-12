@@ -5,17 +5,21 @@
 #include "ECS/Components/Transform.h"
 
 #include <chrono>
+#include <functional>
 #include <glm/gtc/matrix_transform.hpp>
+#include <imgui.h>
 
 using namespace Mupfel;
 
 static const std::vector<Transform> vertices = {
-	{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-	{{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-	{{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
-	{{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}};
+	{{-0.5f, -0.5f}, {1.0f, 0.0f}},
+	{{0.5f, -0.5f}, {0.0f, 0.0f}},
+	{{0.5f, 0.5f}, {0.0f, 1.0f}},
+	{{-0.5f, 0.5f}, {1.0f, 1.0f}}};
 
 static const std::vector<uint16_t> indices = {0, 1, 2, 2, 3, 0};
+
+static const std::string defaul_image_path = "Images/texture.jpg";
 
 void Mupfel::Renderer::Init(const Ping::Device& device, const Window& window)
 {
@@ -25,7 +29,14 @@ void Mupfel::Renderer::Init(const Ping::Device& device, const Window& window)
 	Ping::PipelineSpecification pipeline_spec{
 		"Shaders/slang.spv",
 		Transform::GetVertexLayout(),
-		{{.binding = 0, .type = Ping::DescriptorType::UniformBuffer, .stageFlags = Ping::ShaderStage::Vertex}}};
+		{{.set = uboSetIndex,
+		  .binding = 0,
+		  .type = Ping::DescriptorType::UniformBuffer,
+		  .stageFlags = Ping::ShaderStage::Vertex},
+		 {.set = samplerSetIndex,
+		  .binding = 0,
+		  .type = Ping::DescriptorType::CombinedImageSampler,
+		  .stageFlags = Ping::ShaderStage::Fragment}}};
 	pipeline = device.CreatePipeline(pipeline_spec, swapchain.value());
 	commandBuffers = device.CreateCommandBuffers(Ping::QueueType::Graphics, frames_in_flight);
 	assert(commandBuffers.has_value() && commandBuffers.value().size() > 0);
@@ -54,15 +65,42 @@ void Mupfel::Renderer::Init(const Ping::Device& device, const Window& window)
 	index_buffer.value().CopyHostData(device, indices.data(), sizeof(uint16_t) * indices.size());
 
 	/* Create descriptor sets */
-	descriptorSets = device.CreateDescriptorSets(pipeline.value(), uniformBuffers);
+	descriptorSets = device.CreateDescriptorSets(pipeline.value(), uboSetIndex, uniformBuffers);
+
+	gui = device.CreateGui(window, swapchain.value(), frames_in_flight);
+
+	/* Try to open a default image */
+	std::optional<Ping::Image> defaul_image = device.CreateImage(defaul_image_path, Ping::ImageUsage::Sampled);
+
+	if (!defaul_image.has_value())
+	{
+		logger->warn("Unable to load {}.", defaul_image_path);
+		return;
+	}
+
+	images.push_back(std::move(defaul_image.value()));
+	samplers.push_back(device.CreateSampler(
+		{.filterMode = Ping::SamplerFilterMode::Linear,
+		 .mipmapMode = Ping::SamplerMipMapMode::Linear,
+		 .addressMode = Ping::SamplerAddressMode::Repeat,
+		 .anisotropyEnable = true}));
+
+	std::vector<std::reference_wrapper<const Ping::Sampler>> sampler_refs(images.size(), samplers.front());
+
+	samplerDescriptorSets = device.CreateSamplerDescriptorSets(pipeline.value(), samplerSetIndex, images, sampler_refs);
 }
 
 void Mupfel::Renderer::SyncRenderableObjects(World& world, const Ping::Device& device, uint32_t frame_index)
-{ /* We are currently not taking any data from the CPU */ }
+{ 
+	/* We are currently not taking any data from the CPU */
+	(void)world;
+	(void)device;
+	(void)frame_index;
+}
 
-void Mupfel::Renderer::updateMVP(Ping::Buffer& uniform_buffer, Ping::SwapChain& swapchain)
+void Mupfel::Renderer::updateMVP(Ping::Buffer& uniform_buffer)
 {
-	auto [width, height] = swapchain.GetExtent();
+	auto [width, height] = swapchain.value().GetExtent();
 
 	static auto startTime = std::chrono::high_resolution_clock::now();
 
@@ -85,7 +123,7 @@ void Mupfel::Renderer::RenderNextFrame(World& world, const Ping::Device& device,
 
 	current_command_buffer.WaitForFences(device);
 
-	updateMVP(uniformBuffers[frameIndex], swapchain.value());
+	updateMVP(uniformBuffers[frameIndex]);
 
 	SyncRenderableObjects(world, device, frameIndex);
 
@@ -98,6 +136,9 @@ void Mupfel::Renderer::RenderNextFrame(World& world, const Ping::Device& device,
 		swapchain.value().Recreate(device, window, frames_in_flight);
 		return;
 	}
+
+	gui.value().NewFrame();
+	ImGui::ShowDemoWindow();
 
 	current_command_buffer.Begin(device, Ping::CommandBufferUsage::None);
 
@@ -115,14 +156,21 @@ void Mupfel::Renderer::RenderNextFrame(World& world, const Ping::Device& device,
 
 	current_command_buffer.BindPipeline(pipeline.value());
 
-	current_command_buffer.BindDescriptorSet(pipeline.value(), descriptorSets.value(), frameIndex);
+	current_command_buffer.BindDescriptorSet(pipeline.value(), descriptorSets.value(), frameIndex, uboSetIndex);
 
-	current_command_buffer.BindVertexBuffer(pipeline.value(), vertex_buffers[frameIndex], 0);
+	if (samplerDescriptorSets.has_value())
+	{
+		current_command_buffer.BindDescriptorSet(pipeline.value(), samplerDescriptorSets.value(), 0, samplerSetIndex);
+	}
 
-	current_command_buffer.BindIndexBuffer(pipeline.value(), index_buffer.value());
+	current_command_buffer.BindVertexBuffer(vertex_buffers[frameIndex], 0);
+
+	current_command_buffer.BindIndexBuffer(index_buffer.value());
 
 	// current_command_buffer.Draw(3);
-	current_command_buffer.DrawIndexed(indices.size());
+	current_command_buffer.DrawIndexed(static_cast<uint32_t>(indices.size()));
+
+	current_command_buffer.DrawGui(device, gui.value(), frameIndex);
 
 	current_command_buffer.EndRendering();
 

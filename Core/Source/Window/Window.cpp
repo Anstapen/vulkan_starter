@@ -49,6 +49,8 @@ void Window::GetFramebufferSize(int32_t& width, int32_t& height) const
 
 static void framebufferResizeCallback(GLFWwindow* window, int width, int height)
 {
+	(void)width;
+	(void)height;
 	auto w = reinterpret_cast<Window*>(glfwGetWindowUserPointer(window));
 	w->windowResized = true;
 }

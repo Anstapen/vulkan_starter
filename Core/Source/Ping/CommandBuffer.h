@@ -1,6 +1,7 @@
 #pragma once
 #include "Buffer.h"
 #include "DescriptorSets.h"
+#include "Gui.h"
 #include "Pipeline.h"
 #include "SwapChain.h"
 #include "Types.h"
@@ -59,13 +60,19 @@ public:
 	void BindPipeline(Pipeline& pipeline);
 
 	/** Binds `buffer` as the vertex buffer for `pipeline`'s given `binding` slot. */
-	void BindVertexBuffer(const Pipeline& pipeline, const Buffer& buffer, uint32_t binding) const;
+	void BindVertexBuffer(const Buffer& buffer, uint32_t binding) const;
 
 	/** Binds `buffer` as the index buffer for `pipeline`'. */
-	void BindIndexBuffer(const Pipeline& pipeline, const Buffer& buffer) const;
+	void BindIndexBuffer(const Buffer& buffer) const;
 
-	/** Binds `descriptor_sets`' set for `frame_index` at the graphics bind point for `pipeline`. */
-	void BindDescriptorSet(const Pipeline& pipeline, const DescriptorSets& descriptor_sets, uint32_t frame_index) const;
+	/** Binds `descriptor_sets`' set at `set_element` to descriptor set slot `set_index` for `pipeline`. */
+	void BindDescriptorSet(
+		const Pipeline&		  pipeline,
+		const DescriptorSets& descriptor_sets,
+		uint32_t			  set_element,
+		uint32_t			  set_index) const;
+
+	void DrawGui(const Device& device, const Gui& gui, uint32_t frame_index) const;
 
 	/**
 	 * Submits the recorded commands to the device's graphics queue. `frameIndex` is this command

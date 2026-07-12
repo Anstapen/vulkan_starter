@@ -8,6 +8,9 @@
 #include "Ping/Buffer.h"
 #include "Ping/DescriptorSets.h"
 #include "Ping/Device.h"
+#include "Ping/Gui.h"
+#include "Ping/Image.h"
+#include "Ping/Sampler.h"
 
 #include "glm/glm.hpp"
 
@@ -52,7 +55,7 @@ private:
 	/**
 	 * Update the Model-View-Projection matricies for a specific uniform buffer.
 	 */
-	void updateMVP(Ping::Buffer& uniform_buffer, Ping::SwapChain &swapchain);
+	void updateMVP(Ping::Buffer& uniform_buffer);
 
 private:
 	/** Number of frames pipelined in parallel. */
@@ -75,6 +78,15 @@ private:
 	std::vector<Ping::Buffer> uniformBuffers;
 	/** Descriptor sets */
 	std::optional<Ping::DescriptorSets> descriptorSets;
+
+	std::vector<Ping::Image>			images;
+	std::vector<Ping::Sampler>			samplers;
+	std::optional<Ping::DescriptorSets> samplerDescriptorSets;
+
+	std::optional<Ping::Gui> gui;
+
+	static constexpr uint32_t uboSetIndex = 0;
+	static constexpr uint32_t samplerSetIndex = 1;
 };
 
 } // namespace Mupfel

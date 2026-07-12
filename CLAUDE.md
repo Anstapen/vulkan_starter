@@ -4,12 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Build
 
-Premake5-based, Windows/MSVC (Visual Studio 2022) is the primary target; a Linux `gmake2` setup script also exists but is unverified.
+Premake5-based, Windows/MSVC (Visual Studio 2026) is the primary target; a Linux `gmake2` setup script also exists but is unverified.
 
 - Requires the `VULKAN_SDK` environment variable to point at an installed Vulkan SDK — `Build.lua` aborts if it's unset.
-- Generate project files: `Scripts\Setup-Windows.bat` (runs `premake5 --file=Build.lua vs2022` from the repo root) or `Scripts/Setup-Linux.sh` for `gmake2`.
+- Generate project files: `Scripts\Setup-Windows.bat` (runs `premake5 --file=Build.lua vs2026` from the repo root) or `Scripts/Setup-Linux.sh` for `gmake2`.
+- The vendored `Vendor/Binaries/Premake/Windows/premake5.exe` is `5.0.0-beta8`, the first release with a `vs2026` action (the older `5.0.0-beta2` only went up to `vs2022`).
 - On first generation, Premake auto-downloads and unzips missing dependencies (GLM, GLFW 3.4, spdlog 1.17.0) into `Vendor/Sources/` — see `Dependencies.lua`.
-- Build via the generated `Vulkan Starter.sln` / MSBuild; there is no CLI test runner or lint step in this repo.
+- Build via the generated `Vulkan Starter.slnx` / MSBuild; there is no CLI test runner or lint step in this repo.
 - Configurations: `Debug`, `Release`, `Dist`. `Core` builds `warnings "Extra"` and (Release/Dist) `fatalwarnings "All"` — warnings in `Core/Source` will break non-Debug builds.
 - Shaders are compiled manually, not as part of the main build: `App/Shaders/compile.bat` invokes `slangc` on `shader.slang` to produce `slang.spv` (targets SPIR-V 1.4, entry points `vertMain`/`fragMain`).
 

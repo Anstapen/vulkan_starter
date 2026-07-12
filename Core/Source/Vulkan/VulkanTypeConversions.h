@@ -38,4 +38,13 @@ vk::ShaderStageFlags ToVulkan(Ping::ShaderStage stage);
 
 /** @throws std::runtime_error if `type` has no known `vk::DescriptorType` mapping. */
 vk::DescriptorType ToVulkan(Ping::DescriptorType type);
+
+/** Bitwise-ORs together the `vk::ImageUsageFlagBits` for every flag set in `usage`. */
+vk::ImageUsageFlags ToVulkan(Ping::ImageUsage usage);
+
+vk::Filter ToVulkan(Ping::SamplerFilterMode filter);
+
+vk::SamplerMipmapMode ToVulkan(Ping::SamplerMipMapMode mipmap_mode);
+
+vk::SamplerAddressMode ToVulkan(Ping::SamplerAddressMode address_mode);
 } // namespace Backend

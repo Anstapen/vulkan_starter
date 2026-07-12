@@ -4,12 +4,12 @@
 using namespace Backend;
 
 Backend::VulkanBuffer::VulkanBuffer(
-	vk::raii::Buffer&&	   in_buffer,
-	vk::raii::DeviceMemory in_memory,
-	void*				   in_data,
-	uint64_t			   in_size,
-	Ping::BufferUsage	   in_buffer_usage,
-	Ping::MemoryProperty   in_memory_property) noexcept
+	vk::raii::Buffer&&		in_buffer,
+	vk::raii::DeviceMemory	in_memory,
+	void*					in_data,
+	uint64_t				in_size,
+	vk::BufferUsageFlags	in_buffer_usage,
+	vk::MemoryPropertyFlags in_memory_property) noexcept
 	: buffer(std::move(in_buffer)), memory(std::move(in_memory)), data(in_data), size(in_size),
 	  bufferUsage(in_buffer_usage), memoryProperty(in_memory_property)
 {
@@ -75,13 +75,13 @@ void Backend::VulkanBuffer::Resize(const VulkanContext& context, uint64_t new_si
 	else
 	{
 		/* Resizing a device local buffer needs TransferSrc */
-		if (!Ping::HasFlag(bufferUsage, Ping::BufferUsage::TransferSrc))
+		if ((bufferUsage & vk::BufferUsageFlagBits::eTransferSrc) != vk::BufferUsageFlagBits::eTransferSrc)
 		{
 			throw std::runtime_error("Tried to resize a device local buffer that is missing the TransferSrc flag!");
 		}
 
 		VulkanBuffer new_buffer =
-			VKManager::CreateBuffer(context, new_size, bufferUsage | Ping::BufferUsage::TransferDst, memoryProperty);
+			VKManager::CreateBuffer(context, new_size, bufferUsage | vk::BufferUsageFlagBits::eTransferDst, memoryProperty);
 		VKManager::CopyBuffer(context, this->buffer, new_buffer.buffer, this->size);
 
 		*this = std::move(new_buffer);
@@ -94,7 +94,7 @@ void* Backend::VulkanBuffer::GetMappedPtr()
 	return data;
 }
 
-void Backend::VulkanBuffer::CopyHostData(const VulkanContext& context, const void* src, uint64_t size)
+void Backend::VulkanBuffer::CopyHostData(const VulkanContext& context, const void* src, uint64_t buffer_size)
 {
 	/* The buffer must be device local for this to work! */
 	if (data)
@@ -102,22 +102,22 @@ void Backend::VulkanBuffer::CopyHostData(const VulkanContext& context, const voi
 		throw std::runtime_error("Tried to copy host data to non-device-local buffer!");
 	}
 
-	if (size > this->size)
+	if (buffer_size > this->size)
 	{
 		throw std::runtime_error("Tried to copy more data than the buffer can currently hold!");
 	}
 
 	/* Create a staging buffer for the host data */
 	VulkanBuffer staging_buffer = VKManager::CreateBuffer(
-		context, size, Ping::BufferUsage::TransferSrc,
-		Ping::MemoryProperty::HostVisible | Ping::MemoryProperty::HostCoherent);
+		context, buffer_size, vk::BufferUsageFlagBits::eTransferSrc,
+		vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
 
 	void* staging_ptr = staging_buffer.GetMappedPtr();
 
 	/* This should always work, as the buffer was just created using HostVisible */
 	assert(staging_ptr);
 
-	std::memcpy(staging_ptr, src, size);
+	std::memcpy(staging_ptr, src, buffer_size);
 
-	VKManager::CopyBuffer(context, staging_buffer.buffer, this->buffer, size);
+	VKManager::CopyBuffer(context, staging_buffer.buffer, this->buffer, buffer_size);
 }

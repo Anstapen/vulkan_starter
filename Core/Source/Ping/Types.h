@@ -261,19 +261,69 @@ constexpr bool HasFlag(ShaderStage value, ShaderStage flag)
  */
 enum class DescriptorType
 {
-	/** A uniform buffer object, bound via a `Buffer` created with `BufferUsage::UniformBuffer`. */
+	/** A uniform buffer object. */
 	UniformBuffer,
+	CombinedImageSampler
 };
 
 /** Describes one shader-visible binding slot within a pipeline's descriptor set layout. */
 struct DescriptorBinding
 {
+	uint32_t set = 0;
 	/** Binding index, matching `layout(binding = N)` in the shader. */
 	uint32_t binding;
 	/** Resource type exposed at this binding. */
 	DescriptorType type;
 	/** Shader stage(s) that read this binding. */
 	ShaderStage stageFlags;
+};
+
+enum class ImageUsage : uint32_t
+{
+	None = 0,
+	/** Image is intended to be sampled by a shader */
+	Sampled = 1 << 0
+};
+
+/** Combines two ImageUsage flags. */
+constexpr ImageUsage operator|(ImageUsage lhs, ImageUsage rhs)
+{
+	return static_cast<ImageUsage>(static_cast<uint32_t>(lhs) | static_cast<uint32_t>(rhs));
+}
+
+/** Returns whether every bit set in `flag` is also set in `value`. */
+constexpr bool HasFlag(ImageUsage value, ImageUsage flag)
+{
+	return (static_cast<uint32_t>(value) & static_cast<uint32_t>(flag)) != 0;
+}
+
+enum class SamplerFilterMode
+{
+	Nearest,
+	Linear
+};
+
+enum class SamplerMipMapMode
+{
+	Nearest,
+	Linear
+};
+
+enum class SamplerAddressMode
+{
+	Repeat,
+	MirroredRepeat,
+	ClampToEdge,
+	MirrorClampToEdge,
+	ClampToBorder
+};
+
+struct SamplerSpecification
+{
+	SamplerFilterMode  filterMode;
+	SamplerMipMapMode  mipmapMode;
+	SamplerAddressMode addressMode;
+	bool			   anisotropyEnable;
 };
 
 } // namespace Ping

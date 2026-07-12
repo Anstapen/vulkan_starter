@@ -47,7 +47,6 @@ void Backend::VulkanCommandBuffer::BindPipeline(const VulkanPipeline& pipeline) 
 }
 
 void Backend::VulkanCommandBuffer::BindVertexBuffer(
-	const VulkanPipeline& pipeline,
 	const VulkanBuffer&	  buffer,
 	uint32_t			  binding) const
 {
@@ -55,7 +54,7 @@ void Backend::VulkanCommandBuffer::BindVertexBuffer(
 	commandBuffer.bindVertexBuffers(binding, *buffer.buffer, {0});
 }
 
-void Backend::VulkanCommandBuffer::BindIndexBuffer(const VulkanPipeline& pipeline, const VulkanBuffer& buffer) const
+void Backend::VulkanCommandBuffer::BindIndexBuffer(const VulkanBuffer& buffer) const
 {
 	commandBuffer.bindIndexBuffer(*buffer.buffer, 0, vk::IndexType::eUint16);
 }
@@ -63,10 +62,16 @@ void Backend::VulkanCommandBuffer::BindIndexBuffer(const VulkanPipeline& pipelin
 void Backend::VulkanCommandBuffer::BindDescriptorSet(
 	const VulkanPipeline&		pipeline,
 	const VulkanDescriptorPool& descriptor_pool,
-	uint32_t					frame_index) const
+	uint32_t					set_element,
+	uint32_t					set_index) const
 {
 	commandBuffer.bindDescriptorSets(
-		vk::PipelineBindPoint::eGraphics, *pipeline.pipelineLayout, 0, *descriptor_pool.sets[frame_index], {});
+		vk::PipelineBindPoint::eGraphics, *pipeline.pipelineLayout, set_index, *descriptor_pool.sets[set_element], {});
+}
+
+void Backend::VulkanCommandBuffer::DrawGui(const VulkanContext& context, VulkanGui& gui, uint32_t frame_index) const
+{
+	VKManager::RenderGui(context, *this, gui, frame_index);
 }
 
 void VulkanCommandBuffer::Draw(uint32_t vertex_count) const { commandBuffer.draw(vertex_count, 1, 0, 0); }

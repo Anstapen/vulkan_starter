@@ -26,9 +26,9 @@ void Mupfel::Application::Run()
 }
 
 static const std::vector<Mupfel::Transform> vertices = {
-	{{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-	{{0.4330f, 0.25f}, {0.0f, 1.0f, 0.0f}},
-	{{-0.4330f, 0.25f}, {0.0f, 0.0f, 1.0f}}};
+	{{0.0f, -0.5f}, {1.0f, 0.0f}},
+	{{0.4330f, 0.25f}, {0.0f, 1.0f}},
+	{{-0.4330f, 0.25f}, {0.0f, 0.0f}}};
 
 void Mupfel::Application::Init()
 {

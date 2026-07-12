@@ -1,6 +1,5 @@
 #pragma once
 #include "Logger/Logger.h"
-#include "Ping/CommandBuffer.h"
 #include "Ping/Pipeline.h"
 #include "VKUtil.h"
 #include "VulkanBuffer.h"
@@ -9,11 +8,15 @@
 #include "VulkanCommon.h"
 #include "VulkanContext.h"
 #include "VulkanDescriptorPool.h"
+#include "VulkanGui.h"
+#include "VulkanImage.h"
 #include "VulkanPipeline.h"
 #include "VulkanQueue.h"
+#include "VulkanSampler.h"
 #include "VulkanSwapChain.h"
 #include "Window/Window.h"
 #include <array>
+#include <optional>
 #include <vector>
 
 namespace Backend
@@ -77,24 +80,60 @@ public:
 	static VulkanCommandBuffers
 	CreateCommandBuffers(const VulkanContext& context, Ping::QueueType type, uint32_t num_buffers);
 
-	/**
-	 * Allocates a descriptor pool sized for exactly `uniform_buffers.size()` sets of `pipeline`'s
-	 * descriptor set layout, allocates that many sets, and writes each set's binding 0 to point at
-	 * the matching entry of `uniform_buffers` as a uniform buffer.
-	 *
-	 * @throws std::runtime_error if `uniform_buffers` is empty.
-	 */
-	static VulkanDescriptorPool CreateDescriptorSets(
+	static VulkanDescriptorPool CreateUBODescriptorSets(
 		const VulkanContext&					context,
 		const VulkanPipeline&					pipeline,
+		uint32_t								set_index,
 		const std::vector<const VulkanBuffer*>& uniform_buffers);
+
+	static VulkanDescriptorPool CreateSamplerDescriptorSets(
+		const VulkanContext&					 context,
+		const VulkanPipeline&					 pipeline,
+		uint32_t								 set_index,
+		const std::vector<const VulkanImage*>&	 images,
+		const std::vector<const VulkanSampler*>& samplers);
 
 	/**
 	 * Creates a buffer of `size` bytes with `usage`, backed by memory satisfying `property`; maps the
 	 * memory immediately if `property` includes `MemoryProperty::HostVisible`.
 	 */
-	static VulkanBuffer
-	CreateBuffer(const VulkanContext& context, size_t size, Ping::BufferUsage usage, Ping::MemoryProperty property);
+	static VulkanBuffer CreateBuffer(
+		const VulkanContext&	context,
+		size_t					size,
+		vk::BufferUsageFlags	usage,
+		vk::MemoryPropertyFlags property);
+
+	/**
+	 * Creates a buffer of `size` bytes with `usage`, backed by memory satisfying `property`; maps the
+	 * memory immediately if `property` includes `MemoryProperty::HostVisible`.
+	 */
+	static VulkanImage CreateImage(
+		const VulkanContext&	context,
+		uint32_t				width,
+		uint32_t				height,
+		vk::Format				format,
+		vk::ImageTiling			tiling,
+		vk::ImageUsageFlags		usage,
+		vk::MemoryPropertyFlags properties);
+
+	/**
+	 * Creates a sampler describing how images are sampled by shaders.
+	 *
+	 * @note Implementation intentionally left to be filled in.
+	 */
+	static VulkanSampler CreateSampler(const VulkanContext& context, Ping::SamplerSpecification sampler_spec);
+
+	static VulkanGui CreateGui(
+		const VulkanContext&   context,
+		const Window&		   window,
+		const VulkanSwapChain& swapchain,
+		uint32_t			   frames_in_flight);
+
+	static void RenderGui(
+		const VulkanContext&	   context,
+		const VulkanCommandBuffer& cmd_buffer,
+		VulkanGui&				   gui,
+		uint32_t				   frame_index);
 
 	/**
 	 * Records a `vk::ImageMemoryBarrier2`-based transition of `swapchain`'s image at `imageIndex`, per
@@ -136,6 +175,9 @@ public:
 		vk::raii::Buffer&	 dstBuffer,
 		vk::DeviceSize		 size);
 
+	static std::optional<VulkanImage>
+	LoadVulkanImage(const VulkanContext& context, const std::string& path, vk::ImageUsageFlags usage);
+
 private:
 	/**
 	 * Creates the `vk::Instance`, enabling `wanted_extensions`/`wanted_validation_layers` (each
@@ -158,7 +200,7 @@ private:
 	 * enumerated is returned — there is currently no ranking beyond having a graphics queue family.
 	 * @throws std::runtime_error if no device is suitable.
 	 */
-	static vk::raii::PhysicalDevice SelectBestDevice(vk::raii::Instance& instance, vk::raii::SurfaceKHR& surface);
+	static vk::raii::PhysicalDevice SelectBestDevice(vk::raii::Instance& instance);
 
 	/** Adds the instance extensions GLFW requires for window surface creation on the current platform. */
 	static void AddRequiredExtensions(VKExtensions& extensions);
@@ -178,7 +220,7 @@ private:
 	 * messages. A no-op returning a null handle in release (`NDEBUG`) builds.
 	 */
 	static vk::raii::DebugUtilsMessengerEXT
-	SetupDebugCallback(vk::raii::Instance& instance, PFN_vkDebugUtilsMessengerCallbackEXT user_callback);
+	SetupDebugCallback(vk::raii::Instance& instance, vk::PFN_DebugUtilsMessengerCallbackEXT user_callback);
 
 	/** Whether `device` has at least one queue family, and at least one of them supports graphics. */
 	static bool IsDeviceSuitable(const vk::raii::PhysicalDevice& device);
@@ -224,16 +266,21 @@ private:
 	 * `VkMemoryRequirements::memoryTypeBits` mask) and which supports all flags in `property`.
 	 * @throws std::runtime_error if no matching memory type exists.
 	 */
-	static uint32_t
-	findMemoryType(const vk::raii::PhysicalDevice& phys_devicee, uint32_t type_filter, Ping::MemoryProperty property);
+	static uint32_t findMemoryType(
+		const vk::raii::PhysicalDevice& phys_devicee,
+		uint32_t						type_filter,
+		vk::MemoryPropertyFlags			property);
 
-	/**
-	 * Builds the descriptor set layout for `bindings` (used by `CreatePipeline`). A pipeline with no
-	 * descriptor bindings still gets a valid, zero-binding layout, keeping pipeline-layout creation
-	 * uniform regardless of whether the pipeline uses descriptor sets.
-	 */
-	static vk::raii::DescriptorSetLayout
-	CreateDescriptorSetLayout(const VulkanContext& context, const std::vector<Ping::DescriptorBinding>& bindings);
+	static std::vector<vk::raii::DescriptorSetLayout>
+	CreateDescriptorSetLayouts(const VulkanContext& context, const std::vector<Ping::DescriptorBinding>& bindings);
+
+	static void UploadImageData(
+		const VulkanContext& context,
+		VulkanImage&		 image,
+		const void*			 pixels,
+		uint32_t			 width,
+		uint32_t			 height,
+		uint32_t			 bytes_per_pixel);
 
 private:
 	/** Set by `Init`; guards it from running twice. */

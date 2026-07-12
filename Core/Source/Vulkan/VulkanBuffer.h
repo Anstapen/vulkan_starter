@@ -1,5 +1,4 @@
 #pragma once
-#include "Ping/Types.h"
 #include "VulkanCommon.h"
 #include "VulkanContext.h"
 
@@ -7,6 +6,7 @@ namespace Backend
 {
 class VKManager;
 class VulkanCommandBuffer;
+class VulkanImage;
 
 /**
  * RAII-owning backend counterpart of `Ping::Buffer`: the buffer and its backing device memory,
@@ -22,18 +22,20 @@ public:
 	friend VKManager;
 	/** Reads `buffer` to bind it as a vertex buffer. */
 	friend VulkanCommandBuffer;
+	/** Accesses the underlying vulkan buffer  */
+	friend VulkanImage;
 
 	/**
 	 * Takes ownership of an already-created buffer and its bound memory. `in_data` is the mapped
 	 * pointer if the memory is host-visible, or `nullptr` if it isn't mapped.
 	 */
 	VulkanBuffer(
-		vk::raii::Buffer&&	   in_buffer,
-		vk::raii::DeviceMemory in_memory,
-		void*				   in_data,
-		uint64_t			   size,
-		Ping::BufferUsage	   in_buffer_usage,
-		Ping::MemoryProperty   in_memory_property) noexcept;
+		vk::raii::Buffer&&		in_buffer,
+		vk::raii::DeviceMemory	in_memory,
+		void*					in_data,
+		uint64_t				size,
+		vk::BufferUsageFlags	in_buffer_usage,
+		vk::MemoryPropertyFlags in_memory_property) noexcept;
 	~VulkanBuffer();
 	VulkanBuffer(const VulkanBuffer& other) = delete;
 	/** Move-constructs from `other`, taking over its buffer, memory, and mapped pointer. */
@@ -75,9 +77,9 @@ private:
 	/** Device memory bound to `buffer`. */
 	vk::raii::DeviceMemory memory;
 	/** The buffer usage type used to create that buffer. */
-	Ping::BufferUsage bufferUsage;
+	vk::BufferUsageFlags bufferUsage;
 	/** The memory property type used to allocate the underlying memory. */
-	Ping::MemoryProperty memoryProperty;
+	vk::MemoryPropertyFlags memoryProperty;
 	/** Mapped pointer into `memory`, or `nullptr` if not host-visible. */
 	void* data;
 	/** Size of the buffer in bytes. */

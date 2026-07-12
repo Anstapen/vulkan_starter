@@ -2,6 +2,7 @@
 #include "VulkanBuffer.h"
 #include "VulkanCommon.h"
 #include "VulkanDescriptorPool.h"
+#include "VulkanGui.h"
 #include "VulkanPipeline.h"
 #include "VulkanSwapChain.h"
 #include <vector>
@@ -49,16 +50,19 @@ public:
 	void BindPipeline(const VulkanPipeline& pipeline) const;
 
 	/** Binds `buffer` at vertex input `binding`, starting at offset 0. */
-	void BindVertexBuffer(const VulkanPipeline& pipeline, const VulkanBuffer& buffer, uint32_t binding) const;
+	void BindVertexBuffer(const VulkanBuffer& buffer, uint32_t binding) const;
 
 	/** Binds `buffer` as index buffer. */
-	void BindIndexBuffer(const VulkanPipeline& pipeline, const VulkanBuffer& buffer) const;
+	void BindIndexBuffer(const VulkanBuffer& buffer) const;
 
-	/** Binds `descriptor_pool`'s set for `frame_index` at the graphics bind point, using `pipeline`'s layout. */
+	/** Binds `descriptor_pool`'s set at `set_element` to descriptor set slot `set_index`, using `pipeline`'s layout. */
 	void BindDescriptorSet(
 		const VulkanPipeline&		pipeline,
 		const VulkanDescriptorPool& descriptor_pool,
-		uint32_t					frame_index) const;
+		uint32_t					set_element,
+		uint32_t					set_index) const;
+
+	void DrawGui(const VulkanContext& context, VulkanGui& gui, uint32_t frame_index) const;
 
 	/** Records a non-indexed draw of `vertex_count` vertices, 1 instance, starting at vertex/instance 0. */
 	void Draw(uint32_t vertex_count) const;

@@ -1,5 +1,6 @@
 #pragma once
 #include "VulkanCommon.h"
+#include <vector>
 
 namespace Backend
 {
@@ -14,12 +15,12 @@ namespace Backend
 class VulkanPipeline
 {
 public:
-	/** Takes ownership of an already-created pipeline, shader module, descriptor set layout, and pipeline layout. */
+	/** Takes ownership of an already-created pipeline, shader module, descriptor set layouts, and pipeline layout. */
 	VulkanPipeline(
-		vk::raii::Pipeline&&			in_pipeline,
-		vk::raii::ShaderModule&&		in_shaders,
-		vk::raii::DescriptorSetLayout&& in_descriptor_set_layout,
-		vk::raii::PipelineLayout&&		in_pipeline_layout) noexcept;
+		vk::raii::Pipeline&&						 in_pipeline,
+		vk::raii::ShaderModule&&					 in_shaders,
+		std::vector<vk::raii::DescriptorSetLayout>&& in_descriptor_set_layouts,
+		vk::raii::PipelineLayout&&					 in_pipeline_layout) noexcept;
 	/** Constructs an empty (null-handle) pipeline; not usable until move-assigned a real one. */
 	VulkanPipeline() noexcept;
 	VulkanPipeline(const VulkanPipeline& other) = delete;
@@ -35,8 +36,8 @@ public:
 	vk::raii::Pipeline pipeline;
 	/** Shader module the pipeline was built from. */
 	vk::raii::ShaderModule shaders;
-	/** Layout of shader-visible resources the pipeline's descriptor sets are built against. */
-	vk::raii::DescriptorSetLayout descriptorSetLayout;
+	/** Layouts of shader-visible resources the pipeline's descriptor sets are built against, indexed by set number. */
+	std::vector<vk::raii::DescriptorSetLayout> descriptorSetLayouts;
 	/** Layout (descriptor sets/push constants) the pipeline was built with. */
 	vk::raii::PipelineLayout pipelineLayout;
 };

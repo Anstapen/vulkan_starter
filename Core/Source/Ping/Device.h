@@ -2,11 +2,16 @@
 #include "Buffer.h"
 #include "CommandBuffer.h"
 #include "DescriptorSets.h"
+#include "Gui.h"
+#include "Image.h"
 #include "Pipeline.h"
+#include "Sampler.h"
 #include "SwapChain.h"
 #include "Types.h"
 #include "Window/Window.h"
+#include <functional>
 #include <memory>
+#include <optional>
 
 /* Forward Declaration of backend-specific classes and types */
 namespace Backend
@@ -34,6 +39,8 @@ class Device
 	friend class CommandBuffer;
 	friend class SwapChain;
 	friend class Buffer;
+	friend class Image;
+	friend class Sampler;
 
 public:
 	virtual ~Device();
@@ -65,14 +72,23 @@ public:
 	/** Allocates a GPU buffer of `size` bytes with the given usage and memory properties. */
 	Buffer CreateBuffer(size_t size, BufferUsage usage, MemoryProperty property) const;
 
-	/**
-	 * Allocates one descriptor set per entry in `uniform_buffers`, built against `pipeline`'s
-	 * descriptor set layout and pre-written to bind the matching buffer.
-	 *
-	 * @note Typically called once, e.g. right after creating the per-frame-in-flight uniform buffers
-	 * — the returned sets are reused every frame, not re-created.
-	 */
-	DescriptorSets CreateDescriptorSets(const Pipeline& pipeline, const std::vector<Buffer>& uniform_buffers) const;
+	/** Allocates a GPU buffer of `size` bytes with the given usage and memory properties. */
+	std::optional<Image> CreateImage(const std::string& path, Ping::ImageUsage usage) const;
+
+	Sampler CreateSampler(const SamplerSpecification& sampler_spec) const;
+
+	DescriptorSets CreateDescriptorSets(
+		const Pipeline&			   pipeline,
+		uint32_t				   set_index,
+		const std::vector<Buffer>& uniform_buffers) const;
+
+	DescriptorSets CreateSamplerDescriptorSets(
+		const Pipeline&											  pipeline,
+		uint32_t												  set_index,
+		const std::vector<Image>&								  images,
+		const std::vector<std::reference_wrapper<const Sampler>>& samplers) const;
+
+	Gui CreateGui(const Window& window, const SwapChain& swapchain, uint32_t frames_in_flight) const;
 
 	/** Blocks until the device has completed all previously submitted work. */
 	void WaitForCommands() const;

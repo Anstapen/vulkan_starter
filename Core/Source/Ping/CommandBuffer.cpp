@@ -54,23 +54,29 @@ void Ping::CommandBuffer::BindPipeline(Pipeline& pipeline)
 	vulkanCommandBufferPtr->BindPipeline(*pipeline.vulkanPipelinePtr.get());
 }
 
-void Ping::CommandBuffer::BindVertexBuffer(const Pipeline& pipeline, const Buffer& buffer, uint32_t binding) const
+void Ping::CommandBuffer::BindVertexBuffer(const Buffer& buffer, uint32_t binding) const
 {
-	vulkanCommandBufferPtr->BindVertexBuffer(*pipeline.vulkanPipelinePtr.get(), *buffer.vulkanBufferPtr.get(), binding);
+	vulkanCommandBufferPtr->BindVertexBuffer(*buffer.vulkanBufferPtr.get(), binding);
 }
 
-void Ping::CommandBuffer::BindIndexBuffer(const Pipeline& pipeline, const Buffer& buffer) const
+void Ping::CommandBuffer::BindIndexBuffer(const Buffer& buffer) const
 {
-	vulkanCommandBufferPtr->BindIndexBuffer(*pipeline.vulkanPipelinePtr.get(), *buffer.vulkanBufferPtr.get());
+	vulkanCommandBufferPtr->BindIndexBuffer(*buffer.vulkanBufferPtr.get());
 }
 
 void Ping::CommandBuffer::BindDescriptorSet(
 	const Pipeline&		  pipeline,
 	const DescriptorSets& descriptor_sets,
-	uint32_t			  frame_index) const
+	uint32_t			  set_element,
+	uint32_t			  set_index) const
 {
 	vulkanCommandBufferPtr->BindDescriptorSet(
-		*pipeline.vulkanPipelinePtr.get(), *descriptor_sets.vulkanDescriptorPoolPtr.get(), frame_index);
+		*pipeline.vulkanPipelinePtr.get(), *descriptor_sets.vulkanDescriptorPoolPtr.get(), set_element, set_index);
+}
+
+void Ping::CommandBuffer::DrawGui(const Device& device, const Gui& gui, uint32_t frame_index) const
+{
+	vulkanCommandBufferPtr->DrawGui(*device.vulkanContextPtr.get(), *gui.vulkanGuiPtr.get(), frame_index);
 }
 
 void Ping::CommandBuffer::Submit(

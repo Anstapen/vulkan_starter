@@ -16,9 +16,10 @@ project "App"
       "../Core/Source/MupfelDeps",
        "../Vendor/Sources/glfw-3.4.bin.WIN64/include",
        vulkan_sdk_path .. "/Include",
-       "../" .. spdlog_dir .. "/include"
+       "../" .. spdlog_dir .. "/include",
+       "../" .. imgui_dir
    }
-   
+
    libdirs {vulkan_sdk_path .. "/Lib"}
    libdirs {"../" .. glfw_dir .. "/lib-vc2022"}
 
@@ -27,7 +28,8 @@ project "App"
       "Core",
       "vulkan",
       "glfw3",
-      "spdlog"
+      "spdlog",
+      "imgui"
    }
 
    targetdir ("../Binaries/" .. OutputDir .. "/%{prj.name}")
