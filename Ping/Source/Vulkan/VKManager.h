@@ -14,10 +14,12 @@
 #include "VulkanQueue.h"
 #include "VulkanSampler.h"
 #include "VulkanSwapChain.h"
-#include "Window/Window.h"
 #include <array>
 #include <optional>
 #include <vector>
+
+/* forward declaration to avoid pulling GLFW headers into this public-facing header */
+struct GLFWwindow;
 
 namespace Backend
 {
@@ -50,7 +52,7 @@ public:
 	 * family isn't available, or if a requested graphics queue lacks presentation support.
 	 */
 	static VulkanContext CreateVulkanContext(
-		const Window&					   window,
+		GLFWwindow*						   window,
 		const std::vector<VKQueueRequest>& wanted_queues,
 		const std::vector<const char*>&	   wanted_instance_extensions,
 		const std::vector<const char*>&	   wanted_device_extensions,
@@ -61,7 +63,13 @@ public:
 	 * and `eMailbox` present mode (falling back to the first available format and `eFifo` respectively).
 	 */
 	static VulkanSwapChain
-	CreateSwapChain(const VulkanContext& context, const Window& window, uint32_t frames_in_flight);
+	CreateSwapChain(const VulkanContext& context, GLFWwindow* window, uint32_t frames_in_flight);
+
+	/**
+	 * Blocks (pumping window events) while `window`'s framebuffer has zero width or height (e.g.
+	 * while minimized), writing the first non-zero size observed to `width`/`height`.
+	 */
+	static void WaitForNonZeroFramebufferSize(GLFWwindow* window, int32_t& width, int32_t& height);
 
 	/**
 	 * Builds a graphics pipeline using dynamic rendering (no `vk::RenderPass`) and dynamic
@@ -125,7 +133,7 @@ public:
 
 	static VulkanGui CreateGui(
 		const VulkanContext&   context,
-		const Window&		   window,
+		GLFWwindow*			   window,
 		const VulkanSwapChain& swapchain,
 		uint32_t			   frames_in_flight);
 
@@ -193,7 +201,7 @@ private:
 	 * Creates the window's presentation surface via `glfwCreateWindowSurface`.
 	 * @throws std::runtime_error if GLFW fails to create the surface.
 	 */
-	static vk::raii::SurfaceKHR CreateSurface(vk::raii::Instance& instance, const Window& window);
+	static vk::raii::SurfaceKHR CreateSurface(vk::raii::Instance& instance, GLFWwindow* window);
 
 	/**
 	 * Picks a physical device via `IsDeviceSuitable`. If multiple devices are suitable, the last one
@@ -247,7 +255,7 @@ private:
 	 * Returns `capabilities.currentExtent` if it's well-defined, otherwise clamps `window`'s current
 	 * framebuffer size to `capabilities`' min/max extent.
 	 */
-	static vk::Extent2D SelectSwapExtent(const vk::SurfaceCapabilitiesKHR& capabilities, const Window& window);
+	static vk::Extent2D SelectSwapExtent(const vk::SurfaceCapabilitiesKHR& capabilities, GLFWwindow* window);
 
 	/**
 	 * Requests at least 3 swapchain images (for `frames_in_flight`-independent triple buffering),

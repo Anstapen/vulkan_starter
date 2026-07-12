@@ -11,6 +11,7 @@
 #include "Ping/Gui.h"
 #include "Ping/Image.h"
 #include "Ping/Sampler.h"
+#include "Window/Window.h"
 
 #include "glm/glm.hpp"
 

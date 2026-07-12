@@ -42,7 +42,7 @@ void VKManager::Init()
 void Backend::VKManager::Shutdown() { glfwTerminate(); }
 
 VulkanContext VKManager::CreateVulkanContext(
-	const Window&					   window,
+	GLFWwindow*						   window,
 	const std::vector<VKQueueRequest>& wanted_queues,
 	const std::vector<const char*>&	   wanted_instance_extensions,
 	const std::vector<const char*>&	   wanted_device_extensions,
@@ -72,7 +72,7 @@ VulkanContext VKManager::CreateVulkanContext(
 }
 
 VulkanSwapChain
-VKManager::CreateSwapChain(const VulkanContext& context, const Window& window, uint32_t frames_in_flight)
+VKManager::CreateSwapChain(const VulkanContext& context, GLFWwindow* window, uint32_t frames_in_flight)
 {
 	auto surfaceCapabilities = context.phys_device.getSurfaceCapabilitiesKHR(*context.surface);
 	std::vector<vk::SurfaceFormatKHR> surfaceFormats = context.phys_device.getSurfaceFormatsKHR(*context.surface);
@@ -711,10 +711,10 @@ vk::raii::Instance VKManager::CreateInstance(
 	return instance;
 }
 
-vk::raii::SurfaceKHR Backend::VKManager::CreateSurface(vk::raii::Instance& instance, const Window& window)
+vk::raii::SurfaceKHR Backend::VKManager::CreateSurface(vk::raii::Instance& instance, GLFWwindow* window)
 {
 	VkSurfaceKHR _surface;
-	if (glfwCreateWindowSurface(*instance, window.GetGLFWHandle(), nullptr, &_surface) != 0)
+	if (glfwCreateWindowSurface(*instance, window, nullptr, &_surface) != 0)
 	{
 		throw std::runtime_error("failed to create window surface!");
 	}
@@ -922,18 +922,28 @@ vk::PresentModeKHR Backend::VKManager::SelectPresentMode(const std::vector<vk::P
 			   : vk::PresentModeKHR::eFifo;
 }
 
-vk::Extent2D Backend::VKManager::SelectSwapExtent(const vk::SurfaceCapabilitiesKHR& capabilities, const Window& window)
+vk::Extent2D Backend::VKManager::SelectSwapExtent(const vk::SurfaceCapabilitiesKHR& capabilities, GLFWwindow* window)
 {
 	if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
 	{
 		return capabilities.currentExtent;
 	}
 	int width, height;
-	glfwGetFramebufferSize(window.GetGLFWHandle(), &width, &height);
+	glfwGetFramebufferSize(window, &width, &height);
 
 	return {
 		std::clamp<uint32_t>(width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width),
 		std::clamp<uint32_t>(height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height)};
+}
+
+void Backend::VKManager::WaitForNonZeroFramebufferSize(GLFWwindow* window, int32_t& width, int32_t& height)
+{
+	glfwGetFramebufferSize(window, &width, &height);
+	while (width == 0 || height == 0)
+	{
+		glfwGetFramebufferSize(window, &width, &height);
+		glfwWaitEvents();
+	}
 }
 
 uint32_t Backend::VKManager::chooseSwapMinImageCount(vk::SurfaceCapabilitiesKHR const& surfaceCapabilities)
@@ -1121,7 +1131,7 @@ VulkanSampler Backend::VKManager::CreateSampler(const VulkanContext& context, Pi
 
 VulkanGui Backend::VKManager::CreateGui(
 	const VulkanContext&   context,
-	const Window&		   window,
+	GLFWwindow*			   window,
 	const VulkanSwapChain& swapchain,
 	uint32_t			   frames_in_flight)
 {
@@ -1133,7 +1143,7 @@ VulkanGui Backend::VKManager::CreateGui(
 	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 	ImGui::StyleColorsDark();
 
-	ImGui_ImplGlfw_InitForVulkan(window.GetGLFWHandle(), true);
+	ImGui_ImplGlfw_InitForVulkan(window, true);
 
 	vk::DescriptorSetLayoutBinding samplerBinding{
 		.binding = 0,

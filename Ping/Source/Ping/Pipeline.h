@@ -14,7 +14,7 @@ namespace Ping
 /** Describes the graphics pipeline to build in `Device::CreatePipeline`. */
 struct PipelineSpecification
 {
-	/** Path to a compiled SPIR-V shader (see `App/Shaders/compile.bat`). */
+	/** Path to a compiled SPIR-V shader (see `Examples/Shaders/compile.bat`). */
 	const std::string shaderFilePath;
 	/** Vertex buffer binding and attribute layout the shader expects. */
 	VertexBinding vertexLayout;

@@ -1,8 +1,10 @@
 #pragma once
-#include "Window/Window.h"
 #include <cstdint>
 #include <memory>
 #include <tuple>
+
+/* forward declaration to avoid pulling GLFW headers into this public-facing header */
+struct GLFWwindow;
 
 namespace Backend
 {
@@ -59,7 +61,7 @@ public:
 	 * Rebuilds the swapchain against `window`'s current size (e.g. after a resize or `Present` failure).
 	 * Blocks (pumping window events) while the framebuffer size is zero, e.g. while minimized.
 	 */
-	void Recreate(const Device& device, const Window& window, uint32_t frames_in_flight);
+	void Recreate(const Device& device, GLFWwindow* window, uint32_t frames_in_flight);
 
 	std::tuple<uint32_t, uint32_t> GetExtent() const;
 

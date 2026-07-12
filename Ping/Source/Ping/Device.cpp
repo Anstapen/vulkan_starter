@@ -18,7 +18,7 @@ using namespace Ping;
 
 Ping::Device::~Device() {}
 
-Ping::Device::Device(const DeviceSpecification& specification, const Window& window)
+Ping::Device::Device(const DeviceSpecification& specification, GLFWwindow* window)
 {
 	(void)specification;
 	Backend::VKManager::Init();
@@ -53,7 +53,7 @@ Device& Ping::Device::operator=(Device&& other)
 	return *this;
 }
 
-SwapChain Ping::Device::CreateSwapChain(const Window& window, uint32_t frames_in_flight) const
+SwapChain Ping::Device::CreateSwapChain(GLFWwindow* window, uint32_t frames_in_flight) const
 {
 	auto vulkanSwapChain = Backend::VKManager::CreateSwapChain(*vulkanContextPtr.get(), window, frames_in_flight);
 
@@ -162,7 +162,7 @@ DescriptorSets Ping::Device::CreateSamplerDescriptorSets(
 	return DescriptorSets(std::move(pool));
 }
 
-Gui Ping::Device::CreateGui(const Window& window, const SwapChain& swapchain, uint32_t frames_in_flight) const
+Gui Ping::Device::CreateGui(GLFWwindow* window, const SwapChain& swapchain, uint32_t frames_in_flight) const
 {
 	Backend::VulkanGui vulkanGui = Backend::VKManager::CreateGui(
 		*vulkanContextPtr.get(), window, *swapchain.vulkanSwapChainPtr.get(), frames_in_flight);

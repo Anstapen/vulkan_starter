@@ -1,23 +1,21 @@
-# C++ Project Starter Template
+# Vulkan Starter
 
-This is a little quick-start project template for C++ projects which utilise a Core/App project architecture. There are two included projects - one called _Core_, and one called _App_. [Premake](https://github.com/premake/premake-core) is used to generate project files.
+A Vulkan-based rendering hardware interface (RHI), split into two Premake projects.
 
-Core builds into a static library and is meant to contain common code intended for use in multiple applications. App builds into an executable and links the Core static library, as well as provides an include path to Core's code.
+`Ping` builds into a static library: the backend-agnostic RHI surface (`Ping::`, see `Ping/Source/Ping`) and its Vulkan implementation (`Backend::`, see `Ping/Source/Vulkan`), plus a small logging utility. `Examples` builds into an executable demonstrating `Ping`: the windowing, application, renderer, and ECS/event-system code, plus the runtime shaders/images/resources it uses. `Examples` links the `Ping` static library and provides an include path to its public headers.
 
-The `Scripts/` directory contains build scripts for Windows and Linux, and the `Vendor/` directory contains Premake binaries (currently version `5.0-beta2`).
+The `Scripts/` directory contains build scripts for Windows and Linux, and the `Vendor/` directory contains Premake binaries.
 
 ## Getting Started
-1. Clone this repository or use the "Use this template" button on GitHub to quickly set up your own repository based on this template
-2. `App/` and `Core/` are the two projects - you can edit the names of these folders and their contents to suit
-3. The three included Premake build files are `Build.lua`, `Core/Build-Core.lua` and `App/Build-App.lua` - you can edit these to customise your build configurations, edit the names of your projects and workspace/solution, etc.
-4. Open the `Scripts/` directory and run the appropriate `Setup` script to generate projects files. You can edit the setup scripts to change the type of project that is generated - out of the box they are set to Visual Studio 2022 for Windows and gmake2 for Linux.
-
-Note that no macOS setup script is currently provided; you can duplicate the Linux script and adjust accordingly.
+1. Set the `VULKAN_SDK` environment variable to your installed Vulkan SDK.
+2. Open the `Scripts/` directory and run the appropriate `Setup` script to generate project files (Visual Studio 2026 for Windows, gmake2 for Linux — the Linux setup is unverified).
+3. Compile shaders manually via `Examples/Shaders/compile.bat` (invokes `slangc`) before running.
+4. Build via the generated solution/Makefiles and run the `Examples` project.
 
 ## Included
-- Some example code (in `App/Source` and `Core/Source`) to provide a starting point and test
+- The `Ping` RHI library (`Ping/Source`) and the `Examples` demo application (`Examples/Source`)
 - Simple `.gitignore` to ignore project files and binaries
-- Premake binaries for Win/Mac/Linux (`v5.0-beta2`)
+- Premake binaries for Windows (`5.0.0-beta8`)
 
 ## License
 - UNLICENSE for this repository (see `UNLICENSE.txt` for more details)

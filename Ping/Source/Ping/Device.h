@@ -8,10 +8,12 @@
 #include "Sampler.h"
 #include "SwapChain.h"
 #include "Types.h"
-#include "Window/Window.h"
 #include <functional>
 #include <memory>
 #include <optional>
+
+/* forward declaration to avoid pulling GLFW headers into this public-facing header */
+struct GLFWwindow;
 
 /* Forward Declaration of backend-specific classes and types */
 namespace Backend
@@ -46,7 +48,7 @@ public:
 	virtual ~Device();
 
 	/** Initializes the Vulkan backend (instance, physical/logical device, queues) for `window`. */
-	Device(const DeviceSpecification& specification, const Window& window);
+	Device(const DeviceSpecification& specification, GLFWwindow* window);
 	Device(const Device& other) = delete;
 	/** Move-constructs from `other`, taking over its Vulkan context. */
 	Device(Device&& other);
@@ -56,7 +58,7 @@ public:
 
 public:
 	/** Creates a swapchain that presents to `window`, pipelined across `frames_in_flight` frames. */
-	SwapChain CreateSwapChain(const Window& window, uint32_t frames_in_flight) const;
+	SwapChain CreateSwapChain(GLFWwindow* window, uint32_t frames_in_flight) const;
 
 	/** Builds a graphics pipeline per `specification`, targeting `swapchain`'s image format. */
 	Pipeline CreatePipeline(const PipelineSpecification& specification, const SwapChain& swapchain) const;
@@ -88,7 +90,7 @@ public:
 		const std::vector<Image>&								  images,
 		const std::vector<std::reference_wrapper<const Sampler>>& samplers) const;
 
-	Gui CreateGui(const Window& window, const SwapChain& swapchain, uint32_t frames_in_flight) const;
+	Gui CreateGui(GLFWwindow* window, const SwapChain& swapchain, uint32_t frames_in_flight) const;
 
 	/** Blocks until the device has completed all previously submitted work. */
 	void WaitForCommands() const;

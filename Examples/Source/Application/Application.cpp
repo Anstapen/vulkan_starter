@@ -43,7 +43,7 @@ void Mupfel::Application::Init()
 		assert(false);
 	}
 	window = Window();
-	device = Ping::Device(Ping::DeviceSpecification(), window.value());
+	device = Ping::Device(Ping::DeviceSpecification(), window.value().GetGLFWHandle());
 	renderer.Init(device.value(), window.value());
 
 	/* Fill the World */

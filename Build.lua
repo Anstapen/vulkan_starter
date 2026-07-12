@@ -13,7 +13,7 @@ include "Dependencies.lua"
 workspace "Vulkan Starter"
    architecture "x64"
    configurations { "Debug", "Release", "Dist" }
-   startproject "App"
+   startproject "Examples"
 
    -- Workspace-wide build options for MSVC
    filter "system:windows"
@@ -21,11 +21,11 @@ workspace "Vulkan Starter"
 
 OutputDir = "%{cfg.system}-%{cfg.architecture}/%{cfg.buildcfg}"
 
-group "Core"
-	include "Core/Build-Core.lua"
+group "Ping"
+	include "Ping/Build-Ping.lua"
 group ""
 
 include "Build-spdlog.lua"
 include "Build-ImGui.lua"
 
-include "App/Build-App.lua"
+include "Examples/Build-Examples.lua"

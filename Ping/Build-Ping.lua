@@ -1,4 +1,4 @@
-project "Core"
+project "Ping"
    kind "StaticLib"
    language "C++"
    cppdialect "C++20"
@@ -9,15 +9,14 @@ project "Core"
 
    targetdir ("../Binaries/" .. OutputDir .. "/%{prj.name}")
    objdir ("../Binaries/Intermediates/" .. OutputDir .. "/%{prj.name}")
-   
+
    libdirs {"../Binaries/Dependencies/%{cfg.buildcfg}"}
-   
+
    libdirs {vulkan_sdk_path .. "/Lib"}
-   
+
    includedirs
    {
    "Source",
-   "Source/MupfelDeps",
    vulkan_sdk_path .. "/Include",
    "../" .. glfw_dir .."/include",
    "../" .. spdlog_dir .. "/include",

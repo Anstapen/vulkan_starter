@@ -25,7 +25,7 @@ void Mupfel::Renderer::Init(const Ping::Device& device, const Window& window)
 {
 	logger = Logger::Create("Renderer");
 	logger->info("Init");
-	swapchain = device.CreateSwapChain(window, frames_in_flight);
+	swapchain = device.CreateSwapChain(window.GetGLFWHandle(), frames_in_flight);
 	Ping::PipelineSpecification pipeline_spec{
 		"Shaders/slang.spv",
 		Transform::GetVertexLayout(),
@@ -67,7 +67,7 @@ void Mupfel::Renderer::Init(const Ping::Device& device, const Window& window)
 	/* Create descriptor sets */
 	descriptorSets = device.CreateDescriptorSets(pipeline.value(), uboSetIndex, uniformBuffers);
 
-	gui = device.CreateGui(window, swapchain.value(), frames_in_flight);
+	gui = device.CreateGui(window.GetGLFWHandle(), swapchain.value(), frames_in_flight);
 
 	/* Try to open a default image */
 	std::optional<Ping::Image> defaul_image = device.CreateImage(defaul_image_path, Ping::ImageUsage::Sampled);
@@ -133,7 +133,7 @@ void Mupfel::Renderer::RenderNextFrame(World& world, const Ping::Device& device,
 	if (image_index == std::numeric_limits<uint32_t>::max())
 	{
 		/* Image was resized, swapchain needs to be recreated */
-		swapchain.value().Recreate(device, window, frames_in_flight);
+		swapchain.value().Recreate(device, window.GetGLFWHandle(), frames_in_flight);
 		return;
 	}
 
@@ -189,7 +189,7 @@ void Mupfel::Renderer::RenderNextFrame(World& world, const Ping::Device& device,
 	if (!swapchain.value().Present(device, image_index))
 	{
 		/* Image was resized, swapchain needs to be recreated */
-		swapchain.value().Recreate(device, window, frames_in_flight);
+		swapchain.value().Recreate(device, window.GetGLFWHandle(), frames_in_flight);
 	}
 
 	incrementFrameIndex();

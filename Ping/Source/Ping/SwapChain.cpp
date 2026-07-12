@@ -30,15 +30,10 @@ uint32_t Ping::SwapChain::AcquireNextImage(uint32_t frameIndex)
 	return vulkanSwapChainPtr->Present(*device.vulkanContextPtr.get(), image_index);
 }
 
-void Ping::SwapChain::Recreate(const Device& device, const Window& window, uint32_t frames_in_flight)
+void Ping::SwapChain::Recreate(const Device& device, GLFWwindow* window, uint32_t frames_in_flight)
 {
 	int32_t width = 0, height = 0;
-	window.GetFramebufferSize(width, height);
-	while (width == 0 || height == 0)
-	{
-		window.GetFramebufferSize(width, height);
-		window.waitEvents();
-	}
+	Backend::VKManager::WaitForNonZeroFramebufferSize(window, width, height);
 
 	device.WaitForCommands();
 	vulkanSwapChainPtr.reset();
