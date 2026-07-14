@@ -8,22 +8,14 @@ namespace Mupfel
 /** Per-entity position + color, uploaded directly to the GPU as a vertex via `GetVertexLayout`. */
 struct Transform
 {
-	/** 2D position, bound to vertex shader location 0. */
-	glm::vec2 pos;
-	/** RGB color, bound to vertex shader location 1. */
-	glm::vec2 texCoord;
-
-	/** The `Ping::VertexBinding` matching `Transform`'s memory layout, for `PipelineSpecification::vertexLayout`. */
-	static Ping::VertexBinding GetVertexLayout()
-	{
-		return {
-			.binding = 0,
-			.stride = sizeof(Transform),
-			.inputRate = Ping::VertexInputRate::Vertex,
-			.attributes = {
-				{0, Ping::VertexFormat::Float32x2, offsetof(Transform, pos)},
-				{1, Ping::VertexFormat::Float32x2, offsetof(Transform, texCoord)}}};
-	}
+	float pos_x = 0.0f;
+	float pos_y = 0.0f;
+	float pos_z = 0.0f;
+	float _pad0 = 0.0f;
+	float scale_x = 1.0f;
+	float scale_y = 1.0f;
+	float rotation = 0.0f;
+	float _padding[1];
 };
 
 } // namespace Mupfel

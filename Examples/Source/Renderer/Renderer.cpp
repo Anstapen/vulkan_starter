@@ -11,7 +11,27 @@
 
 using namespace Mupfel;
 
-static const std::vector<Transform> vertices = {
+struct Vertex
+{
+	/** 2D position, bound to vertex shader location 0. */
+	glm::vec2 pos;
+	/** RGB color, bound to vertex shader location 1. */
+	glm::vec2 texCoord;
+
+	/** The `Ping::VertexBinding` matching `Transform`'s memory layout, for `PipelineSpecification::vertexLayout`. */
+	static Ping::VertexBinding GetVertexLayout()
+	{
+		return {
+			.binding = 0,
+			.stride = sizeof(Vertex),
+			.inputRate = Ping::VertexInputRate::Vertex,
+			.attributes = {
+				{0, Ping::VertexFormat::Float32x2, offsetof(Vertex, pos)},
+				{1, Ping::VertexFormat::Float32x2, offsetof(Vertex, texCoord)}}};
+	}
+};
+
+static const std::vector<Vertex> vertices = {
 	{{-0.5f, -0.5f}, {1.0f, 0.0f}},
 	{{0.5f, -0.5f}, {0.0f, 0.0f}},
 	{{0.5f, 0.5f}, {0.0f, 1.0f}},
@@ -21,6 +41,8 @@ static const std::vector<uint16_t> indices = {0, 1, 2, 2, 3, 0};
 
 static const std::string defaul_image_path = "Images/texture.jpg";
 
+static const uint32_t default_entity_capacity = 100000;
+
 void Mupfel::Renderer::Init(const Ping::Device& device, const Window& window)
 {
 	logger = Logger::Create("Renderer");
@@ -28,7 +50,7 @@ void Mupfel::Renderer::Init(const Ping::Device& device, const Window& window)
 	swapchain = device.CreateSwapChain(window.GetGLFWHandle(), frames_in_flight);
 	Ping::PipelineSpecification pipeline_spec{
 		"Shaders/slang.spv",
-		Transform::GetVertexLayout(),
+		Vertex::GetVertexLayout(),
 		{{.set = uboSetIndex,
 		  .binding = 0,
 		  .type = Ping::DescriptorType::UniformBuffer,
@@ -36,7 +58,11 @@ void Mupfel::Renderer::Init(const Ping::Device& device, const Window& window)
 		 {.set = samplerSetIndex,
 		  .binding = 0,
 		  .type = Ping::DescriptorType::CombinedImageSampler,
-		  .stageFlags = Ping::ShaderStage::Fragment}}};
+		  .stageFlags = Ping::ShaderStage::Fragment},
+		 {.set = transformSetIndex,
+		  .binding = 0,
+		  .type = Ping::DescriptorType::StorageBuffer,
+		  .stageFlags = Ping::ShaderStage::Vertex}}};
 	pipeline = device.CreatePipeline(pipeline_spec, swapchain.value());
 	commandBuffers = device.CreateCommandBuffers(Ping::QueueType::Graphics, frames_in_flight);
 	assert(commandBuffers.has_value() && commandBuffers.value().size() > 0);
@@ -44,17 +70,27 @@ void Mupfel::Renderer::Init(const Ping::Device& device, const Window& window)
 	/* We need one vertex buffer for each frame in flight */
 	for (uint32_t i = 0; i < frames_in_flight; i++)
 	{
+		/* Create vertex buffers. These hold the 4 vertices used to draw the quad. */
 		auto& buffer = vertex_buffers.emplace_back(device.CreateBuffer(
-			sizeof(Transform) * vertices.size(), Ping::BufferUsage::VertexBuffer,
-			Ping::MemoryProperty::HostVisible | Ping::MemoryProperty::HostCoherent));
-		auto* mapped_ptr = static_cast<Transform*>(buffer.GetMappedPtr());
+			sizeof(Vertex) * vertices.size(), Ping::BufferUsage::VertexBuffer,
+			Ping::MemoryProperty::HostVisible | Ping::MemoryProperty::HostCoherent |
+				Ping::MemoryProperty::DeviceLocal));
+		auto* mapped_ptr = static_cast<Vertex*>(buffer.GetMappedPtr());
 
 		/* Copy vertices */
 		std::memcpy(mapped_ptr, vertices.data(), buffer.Size());
 
+		/* Create uniform buffers for the MVP matrices */
 		uniformBuffers.emplace_back(device.CreateBuffer(
 			sizeof(UniformBufferObject), Ping::BufferUsage::UniformBuffer,
-			Ping::MemoryProperty::HostVisible | Ping::MemoryProperty::HostCoherent));
+			Ping::MemoryProperty::HostVisible | Ping::MemoryProperty::HostCoherent |
+				Ping::MemoryProperty::DeviceLocal));
+
+		/* Create transform buffers to render entities */
+		transformBuffers.emplace_back(device.CreateBuffer(
+			sizeof(Mupfel::Transform) * default_entity_capacity, Ping::BufferUsage::StorageBuffer,
+			Ping::MemoryProperty::HostVisible | Ping::MemoryProperty::HostCoherent |
+				Ping::MemoryProperty::DeviceLocal));
 	}
 
 	index_buffer = std::move(device.CreateBuffer(
@@ -88,27 +124,33 @@ void Mupfel::Renderer::Init(const Ping::Device& device, const Window& window)
 	std::vector<std::reference_wrapper<const Ping::Sampler>> sampler_refs(images.size(), samplers.front());
 
 	samplerDescriptorSets = device.CreateSamplerDescriptorSets(pipeline.value(), samplerSetIndex, images, sampler_refs);
+
+	transformDescriptorSets = device.CreateStorageDescriptorSets(pipeline.value(), transformSetIndex, transformBuffers);
 }
 
 void Mupfel::Renderer::SyncRenderableObjects(World& world, const Ping::Device& device, uint32_t frame_index)
-{ 
+{
 	/* We are currently not taking any data from the CPU */
-	(void)world;
 	(void)device;
-	(void)frame_index;
+
+	uint32_t buffer_index = 0;
+
+	Transform* buffer = static_cast<Transform*>(transformBuffers[frame_index].GetMappedPtr());
+
+	for (auto [e, t] : world.registry.view<Mupfel::Transform>())
+	{
+		buffer[buffer_index] = t;
+		buffer_index++;
+	}
+
+	drawable_entities = buffer_index;
 }
 
 void Mupfel::Renderer::updateMVP(Ping::Buffer& uniform_buffer)
 {
 	auto [width, height] = swapchain.value().GetExtent();
 
-	static auto startTime = std::chrono::high_resolution_clock::now();
-
-	auto  currentTime = std::chrono::high_resolution_clock::now();
-	float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
-
 	UniformBufferObject ubo{};
-	ubo.model = rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 	ubo.view = lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 	ubo.proj =
 		glm::perspective(glm::radians(45.0f), static_cast<float>(width) / static_cast<float>(height), 0.1f, 10.0f);
@@ -163,12 +205,14 @@ void Mupfel::Renderer::RenderNextFrame(World& world, const Ping::Device& device,
 		current_command_buffer.BindDescriptorSet(pipeline.value(), samplerDescriptorSets.value(), 0, samplerSetIndex);
 	}
 
+	current_command_buffer.BindDescriptorSet(pipeline.value(), transformDescriptorSets.value(), frameIndex, transformSetIndex);
+
 	current_command_buffer.BindVertexBuffer(vertex_buffers[frameIndex], 0);
 
 	current_command_buffer.BindIndexBuffer(index_buffer.value());
 
 	// current_command_buffer.Draw(3);
-	current_command_buffer.DrawIndexed(static_cast<uint32_t>(indices.size()));
+	current_command_buffer.DrawIndexed(static_cast<uint32_t>(indices.size()), drawable_entities);
 
 	current_command_buffer.DrawGui(device, gui.value(), frameIndex);
 

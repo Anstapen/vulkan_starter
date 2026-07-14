@@ -118,7 +118,9 @@ enum class BufferUsage : uint32_t
 	/** Buffer can be bound as an index buffer. */
 	IndexBuffer = 1 << 3,
 	/** Buffer can be bound as a uniform buffer object (UBO) */
-	UniformBuffer = 1 << 4
+	UniformBuffer = 1 << 4,
+	/** Buffer can be bound as a storage buffer object (SBO) */
+	StorageBuffer = 1 << 5
 };
 
 /** Combines two BufferUsage flags. See the `Ping/Types.h`. */
@@ -263,7 +265,8 @@ enum class DescriptorType
 {
 	/** A uniform buffer object. */
 	UniformBuffer,
-	CombinedImageSampler
+	CombinedImageSampler,
+	StorageBuffer
 };
 
 /** Describes one shader-visible binding slot within a pipeline's descriptor set layout. */

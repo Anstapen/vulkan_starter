@@ -45,6 +45,8 @@ vk::BufferUsageFlags Backend::ToVulkan(Ping::BufferUsage usage)
 		result |= vk::BufferUsageFlagBits::eIndexBuffer;
 	if (Ping::HasFlag(usage, Ping::BufferUsage::UniformBuffer))
 		result |= vk::BufferUsageFlagBits::eUniformBuffer;
+	if (Ping::HasFlag(usage, Ping::BufferUsage::StorageBuffer))
+		result |= vk::BufferUsageFlagBits::eStorageBuffer;
 	return result;
 }
 
@@ -104,6 +106,8 @@ vk::DescriptorType Backend::ToVulkan(Ping::DescriptorType type)
 		return vk::DescriptorType::eUniformBuffer;
 	case Ping::DescriptorType::CombinedImageSampler:
 		return vk::DescriptorType::eCombinedImageSampler;
+	case Ping::DescriptorType::StorageBuffer:
+		return vk::DescriptorType::eStorageBuffer;
 	}
 	throw std::runtime_error("Unhandled Ping::DescriptorType");
 }

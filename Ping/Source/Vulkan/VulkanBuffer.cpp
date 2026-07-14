@@ -99,7 +99,7 @@ void Backend::VulkanBuffer::CopyHostData(const VulkanContext& context, const voi
 	/* The buffer must be device local for this to work! */
 	if (data)
 	{
-		throw std::runtime_error("Tried to copy host data to non-device-local buffer!");
+		throw std::runtime_error("This function shall not be used for Host visible buffers!");
 	}
 
 	if (buffer_size > this->size)

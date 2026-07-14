@@ -101,6 +101,12 @@ public:
 		const std::vector<const VulkanImage*>&	 images,
 		const std::vector<const VulkanSampler*>& samplers);
 
+	static VulkanDescriptorPool CreateStorageDescriptorSets(
+		const VulkanContext&					context,
+		const VulkanPipeline&					pipeline,
+		uint32_t								set_index,
+		const std::vector<const VulkanBuffer*>& storage_buffers);
+
 	/**
 	 * Creates a buffer of `size` bytes with `usage`, backed by memory satisfying `property`; maps the
 	 * memory immediately if `property` includes `MemoryProperty::HostVisible`.

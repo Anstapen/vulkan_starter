@@ -90,6 +90,11 @@ public:
 		const std::vector<Image>&								  images,
 		const std::vector<std::reference_wrapper<const Sampler>>& samplers) const;
 
+	DescriptorSets CreateStorageDescriptorSets(
+		const Pipeline&			   pipeline,
+		uint32_t				   set_index,
+		const std::vector<Buffer>& storage_buffers) const;
+
 	Gui CreateGui(GLFWwindow* window, const SwapChain& swapchain, uint32_t frames_in_flight) const;
 
 	/** Blocks until the device has completed all previously submitted work. */

@@ -85,7 +85,7 @@ public:
 	void Draw(uint32_t vertex_count) const;
 
 	/** Records an indexed draw of index_count vertices from the currently bound vertex buffer. */
-	void DrawIndexed(uint32_t index_count) const;
+	void DrawIndexed(uint32_t index_count, uint32_t instance_count) const;
 
 	/** Ends the dynamic rendering pass started by `BeginRendering`. */
 	void EndRendering() const;

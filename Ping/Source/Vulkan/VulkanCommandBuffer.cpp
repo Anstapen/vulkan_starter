@@ -76,9 +76,9 @@ void Backend::VulkanCommandBuffer::DrawGui(const VulkanContext& context, VulkanG
 
 void VulkanCommandBuffer::Draw(uint32_t vertex_count) const { commandBuffer.draw(vertex_count, 1, 0, 0); }
 
-void Backend::VulkanCommandBuffer::DrawIndexed(uint32_t index_count) const
+void Backend::VulkanCommandBuffer::DrawIndexed(uint32_t index_count, uint32_t instance_count) const
 {
-	commandBuffer.drawIndexed(index_count, 1, 0, 0, 0);
+	commandBuffer.drawIndexed(index_count, instance_count, 0, 0, 0);
 }
 
 void Backend::VulkanCommandBuffer::Submit(

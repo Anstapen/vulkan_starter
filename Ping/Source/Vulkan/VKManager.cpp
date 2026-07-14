@@ -383,6 +383,63 @@ VulkanDescriptorPool Backend::VKManager::CreateSamplerDescriptorSets(
 	return VulkanDescriptorPool(std::move(pool), std::move(sets));
 }
 
+VulkanDescriptorPool Backend::VKManager::CreateStorageDescriptorSets(
+	const VulkanContext&					context,
+	const VulkanPipeline&					pipeline,
+	uint32_t								set_index,
+	const std::vector<const VulkanBuffer*>& storage_buffers)
+{
+	if (storage_buffers.empty())
+	{
+		throw std::runtime_error("Tried to create descriptor sets with no storage buffers!");
+	}
+
+	uint32_t set_count = static_cast<uint32_t>(storage_buffers.size());
+
+	vk::DescriptorPoolSize poolSize{.type = vk::DescriptorType::eStorageBuffer, .descriptorCount = set_count};
+
+	vk::DescriptorPoolCreateInfo poolInfo{
+		/* Individual sets must be freeable, since ~VulkanDescriptorPool frees them one at a time. */
+		.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
+		.maxSets = set_count,
+		.poolSizeCount = 1,
+		.pPoolSizes = &poolSize};
+
+	vk::raii::DescriptorPool pool(context.device, poolInfo);
+
+	/* vkAllocateDescriptorSets wants one layout handle per set, even though they're all identical. */
+	std::vector<vk::DescriptorSetLayout> layouts(set_count, *pipeline.descriptorSetLayouts[set_index]);
+	vk::DescriptorSetAllocateInfo		 allocInfo{
+		.descriptorPool = pool, .descriptorSetCount = set_count, .pSetLayouts = layouts.data()};
+
+	vk::raii::DescriptorSets rawSets(context.device, allocInfo);
+
+	for (uint32_t i = 0; i < set_count; i++)
+	{
+		vk::DescriptorBufferInfo bufferInfo{
+			.buffer = *storage_buffers[i]->buffer, .offset = 0, .range = storage_buffers[i]->Size()};
+
+		vk::WriteDescriptorSet write{
+			.dstSet = rawSets[i],
+			.dstBinding = 0,
+			.dstArrayElement = 0,
+			.descriptorCount = 1,
+			.descriptorType = vk::DescriptorType::eStorageBuffer,
+			.pBufferInfo = &bufferInfo};
+
+		context.device.updateDescriptorSets(write, {});
+	}
+
+	std::vector<vk::raii::DescriptorSet> sets;
+	sets.reserve(set_count);
+	for (auto& set : rawSets)
+	{
+		sets.push_back(std::move(set));
+	}
+
+	return VulkanDescriptorPool(std::move(pool), std::move(sets));
+}
+
 VulkanCommandBuffers
 Backend::VKManager::CreateCommandBuffers(const VulkanContext& context, Ping::QueueType type, uint32_t num_buffers)
 {

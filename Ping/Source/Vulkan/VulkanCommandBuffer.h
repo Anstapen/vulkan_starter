@@ -68,7 +68,7 @@ public:
 	void Draw(uint32_t vertex_count) const;
 
 	/** Records an indexed draw of `index_count` vertices, 1 instance, starting at vertex/instance 0. */
-	void DrawIndexed(uint32_t index_count) const;
+	void DrawIndexed(uint32_t index_count, uint32_t instance_count) const;
 
 	/**
 	 * Submits to the context's graphics queue: waits on `swapchain.presentCompleteSemaphores[frameIndex]`

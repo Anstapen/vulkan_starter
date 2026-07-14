@@ -20,7 +20,6 @@ namespace Mupfel
 
 struct UniformBufferObject
 {
-	glm::mat4 model;
 	glm::mat4 view;
 	glm::mat4 proj;
 };
@@ -77,6 +76,8 @@ private:
 	std::optional<Ping::Buffer> index_buffer;
 	/** One uniform buffer per frame in flight */
 	std::vector<Ping::Buffer> uniformBuffers;
+	/** One storage buffer per frame in flight for the transform data */
+	std::vector<Ping::Buffer> transformBuffers;
 	/** Descriptor sets */
 	std::optional<Ping::DescriptorSets> descriptorSets;
 
@@ -84,10 +85,15 @@ private:
 	std::vector<Ping::Sampler>			samplers;
 	std::optional<Ping::DescriptorSets> samplerDescriptorSets;
 
+	std::optional<Ping::DescriptorSets> transformDescriptorSets;
+
 	std::optional<Ping::Gui> gui;
 
 	static constexpr uint32_t uboSetIndex = 0;
 	static constexpr uint32_t samplerSetIndex = 1;
+	static constexpr uint32_t transformSetIndex = 2;
+
+	uint32_t drawable_entities = 0;
 };
 
 } // namespace Mupfel

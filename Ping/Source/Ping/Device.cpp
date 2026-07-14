@@ -162,6 +162,25 @@ DescriptorSets Ping::Device::CreateSamplerDescriptorSets(
 	return DescriptorSets(std::move(pool));
 }
 
+DescriptorSets Ping::Device::CreateStorageDescriptorSets(
+	const Pipeline&			   pipeline,
+	uint32_t				   set_index,
+	const std::vector<Buffer>& storage_buffers) const
+{
+	std::vector<const Backend::VulkanBuffer*> backend_buffers;
+	backend_buffers.reserve(storage_buffers.size());
+
+	for (const auto& buffer : storage_buffers)
+	{
+		backend_buffers.push_back(buffer.vulkanBufferPtr.get());
+	}
+
+	Backend::VulkanDescriptorPool pool = Backend::VKManager::CreateStorageDescriptorSets(
+		*vulkanContextPtr.get(), *pipeline.vulkanPipelinePtr.get(), set_index, backend_buffers);
+
+	return DescriptorSets(std::move(pool));
+}
+
 Gui Ping::Device::CreateGui(GLFWwindow* window, const SwapChain& swapchain, uint32_t frames_in_flight) const
 {
 	Backend::VulkanGui vulkanGui = Backend::VKManager::CreateGui(

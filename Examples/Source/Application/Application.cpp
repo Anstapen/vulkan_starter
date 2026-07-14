@@ -25,10 +25,6 @@ void Mupfel::Application::Run()
 	MainLoop();
 }
 
-static const std::vector<Mupfel::Transform> vertices = {
-	{{0.0f, -0.5f}, {1.0f, 0.0f}},
-	{{0.4330f, 0.25f}, {0.0f, 1.0f}},
-	{{-0.4330f, 0.25f}, {0.0f, 0.0f}}};
 
 void Mupfel::Application::Init()
 {
@@ -47,15 +43,15 @@ void Mupfel::Application::Init()
 	renderer.Init(device.value(), window.value());
 
 	/* Fill the World */
-
-	for (uint32_t i = 0; i < vertices.size(); i++)
-	{
-		Entity e = world.registry.CreateEntity();
-		world.entities.push_back(e);
-
-		world.registry.AddComponent<Transform>(e, {vertices[i]});
-		world.registry.AddComponent<Texture>(e, {});
-	}
+	Entity e = world.registry.CreateEntity();
+	Transform t;
+	t.pos_x = 0.0f;
+	t.pos_y = 0.0f;
+	t.pos_z = 0.0f;
+	t.scale_x = 1.0f;
+	t.scale_y = 1.0f;
+	t.rotation = 0.0f;
+	world.registry.AddComponent<Transform>(e, t);
 }
 
 void Mupfel::Application::MainLoop()
@@ -63,30 +59,6 @@ void Mupfel::Application::MainLoop()
 	while (!window->shouldClose())
 	{
 		window->pollEvents();
-		frame_counter++;
-
-		constexpr float countsPerRotation = 30000.0f;
-		constexpr float twoPi = 6.28318530718f;
-
-		// counter % 150 sorgt dafür, dass sich der Winkel nach einer vollen
-		// Umdrehung wieder bei 0 fortsetzt, statt unbegrenzt zu wachsen.
-		float frame = static_cast<float>(frame_counter % static_cast<uint32_t>(countsPerRotation)) / countsPerRotation;
-		float angle = frame * twoPi;
-
-		float cosA = std::cos(angle);
-		float sinA = std::sin(angle);
-
-		/* World Updates */
-		auto rect_view = world.registry.view<Mupfel::Transform>();
-
-		uint32_t index = 0;
-		for (auto [entity, t] : rect_view)
-		{
-			t.pos.x = vertices[index].pos.x * cosA - vertices[index].pos.y * sinA;
-			t.pos.y = vertices[index].pos.x * sinA + vertices[index].pos.y * cosA;
-			world.registry.SetComponent<Transform>(entity, t);
-			index++;
-		}
 
 		/* Sync from World to GPU buffers will be done in the Renderer */
 

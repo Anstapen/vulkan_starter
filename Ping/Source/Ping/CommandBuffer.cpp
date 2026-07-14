@@ -91,7 +91,10 @@ void Ping::CommandBuffer::Submit(
 
 void Ping::CommandBuffer::Draw(uint32_t vertex_count) const { vulkanCommandBufferPtr->Draw(vertex_count); }
 
-void Ping::CommandBuffer::DrawIndexed(uint32_t index_count) const { vulkanCommandBufferPtr->DrawIndexed(index_count); }
+void Ping::CommandBuffer::DrawIndexed(uint32_t index_count, uint32_t instance_count) const
+{
+	vulkanCommandBufferPtr->DrawIndexed(index_count, instance_count);
+}
 
 void Ping::CommandBuffer::End() const { vulkanCommandBufferPtr->End(); }
 
