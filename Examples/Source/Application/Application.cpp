@@ -42,16 +42,23 @@ void Mupfel::Application::Init()
 	device = Ping::Device(Ping::DeviceSpecification(), window.value().GetGLFWHandle());
 	renderer.Init(device.value(), window.value());
 
-	/* Fill the World */
-	Entity e = world.registry.CreateEntity();
-	Transform t;
-	t.pos_x = 0.0f;
-	t.pos_y = 0.0f;
-	t.pos_z = 0.0f;
-	t.scale_x = 1.0f;
-	t.scale_y = 1.0f;
-	t.rotation = 0.0f;
-	world.registry.AddComponent<Transform>(e, t);
+	for (uint32_t k = 0; k < 100; k++)
+	{
+		for (uint32_t i = 0; i < 100; i++)
+		{
+			Entity	  e = world.registry.CreateEntity();
+			Transform t;
+			t.pos_x = static_cast<float>(k);
+			t.pos_y = static_cast<float>(i);
+			t.pos_z = 0.0f;
+			t.scale_x = 0.5f;
+			t.scale_y = 0.5f;
+			t.rotation = 0.0f;
+			world.registry.AddComponent<Transform>(e, t);
+		}
+	}
+	
+	
 }
 
 void Mupfel::Application::MainLoop()

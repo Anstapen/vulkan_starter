@@ -41,12 +41,30 @@ public:
 	/** Writes the window's current framebuffer size (in pixels) to `width`/`height`. */
 	void GetFramebufferSize(int32_t& width, int32_t& height) const;
 
+	/** Whether `button` (a `GLFW_MOUSE_BUTTON_*` constant) is currently held down. */
+	bool GetMouseButtonDown(int button) const;
+
+	/** Writes the cursor's current position (in screen coordinates) to `x`/`y`. */
+	void GetCursorPos(double& x, double& y) const;
+
+	/**
+	 * Returns the accumulated vertical scroll delta since the last call, then resets it to zero.
+	 *
+	 * @note Scroll is only available from GLFW as a callback-driven delta, not a polled value, unlike
+	 * mouse position/buttons — this accumulates between calls so callers can still poll it once per frame.
+	 */
+	double ConsumeScrollDeltaY() const;
+
 public:
 	/**
 	 * Set to `true` by the GLFW framebuffer-resize callback. Not currently read anywhere — resize
 	 * handling instead happens via the out-of-date/suboptimal results from `SwapChain::AcquireNextImage`/`Present`.
 	 */
 	volatile bool windowResized = false;
+
+	/** Accumulated by the GLFW scroll callback; consumed via `ConsumeScrollDeltaY`. `mutable` since
+	 * consuming it is bookkeeping, not an observable state change, and callers only ever hold a `const Window&`. */
+	mutable double scrollDeltaY = 0.0;
 
 private:
 	/** Owning GLFW window handle; destroyed via `glfwDestroyWindow`. */

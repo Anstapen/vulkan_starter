@@ -4,6 +4,7 @@
 #include "ECS/Components/Texture.h"
 #include "ECS/Components/Transform.h"
 
+#include <GLFW/glfw3.h>
 #include <chrono>
 #include <functional>
 #include <glm/gtc/matrix_transform.hpp>
@@ -150,12 +151,38 @@ void Mupfel::Renderer::updateMVP(Ping::Buffer& uniform_buffer)
 {
 	auto [width, height] = swapchain.value().GetExtent();
 
+	glm::vec3 eye = cameraDistance * glm::vec3(
+										  glm::cos(cameraPitch) * glm::cos(cameraYaw),
+										  glm::cos(cameraPitch) * glm::sin(cameraYaw), glm::sin(cameraPitch));
+
 	UniformBufferObject ubo{};
-	ubo.view = lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	ubo.view = lookAt(eye, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 	ubo.proj =
-		glm::perspective(glm::radians(45.0f), static_cast<float>(width) / static_cast<float>(height), 0.1f, 10.0f);
+		glm::perspective(glm::radians(45.0f), static_cast<float>(width) / static_cast<float>(height), 0.1f, 500.0f);
 	ubo.proj[1][1] *= -1;
 	std::memcpy(uniform_buffer.GetMappedPtr(), &ubo, sizeof(UniformBufferObject));
+}
+
+void Mupfel::Renderer::UpdateCamera(const Window& window)
+{
+	double cursorX, cursorY;
+	window.GetCursorPos(cursorX, cursorY);
+	bool rightDown = window.GetMouseButtonDown(GLFW_MOUSE_BUTTON_RIGHT);
+
+	if (rightDown && cameraDragging && !ImGui::GetIO().WantCaptureMouse)
+	{
+		constexpr float rotateSensitivity = 0.005f;
+		cameraYaw -= static_cast<float>(cursorX - lastCursorX) * rotateSensitivity;
+		cameraPitch += static_cast<float>(cursorY - lastCursorY) * rotateSensitivity;
+		cameraPitch = glm::clamp(cameraPitch, glm::radians(-89.0f), glm::radians(89.0f));
+	}
+	cameraDragging = rightDown;
+	lastCursorX = cursorX;
+	lastCursorY = cursorY;
+
+	constexpr float zoomSensitivity = 0.3f;
+	cameraDistance -= static_cast<float>(window.ConsumeScrollDeltaY()) * zoomSensitivity;
+	cameraDistance = glm::clamp(cameraDistance, 1.0f, 250.0f);
 }
 
 void Mupfel::Renderer::RenderNextFrame(World& world, const Ping::Device& device, const Window& window)
@@ -165,6 +192,7 @@ void Mupfel::Renderer::RenderNextFrame(World& world, const Ping::Device& device,
 
 	current_command_buffer.WaitForFences(device);
 
+	UpdateCamera(window);
 	updateMVP(uniformBuffers[frameIndex]);
 
 	SyncRenderableObjects(world, device, frameIndex);

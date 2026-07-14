@@ -57,6 +57,12 @@ private:
 	 */
 	void updateMVP(Ping::Buffer& uniform_buffer);
 
+	/**
+	 * Updates the orbit camera from mouse input: right-drag to rotate (yaw/pitch), scroll to zoom
+	 * (distance). Skips rotation input while ImGui wants the mouse (e.g. dragging an ImGui window).
+	 */
+	void UpdateCamera(const Window& window);
+
 private:
 	/** Number of frames pipelined in parallel. */
 	static constexpr uint32_t frames_in_flight = 2;
@@ -94,6 +100,16 @@ private:
 	static constexpr uint32_t transformSetIndex = 2;
 
 	uint32_t drawable_entities = 0;
+
+	/** Orbit camera state, in spherical coordinates around the origin; initial values reproduce the
+	 * previous fixed eye position of (2, 2, 2). */
+	float cameraYaw = glm::radians(45.0f);
+	float cameraPitch = glm::radians(35.264f);
+	float cameraDistance = 3.4641f;
+	/** Whether the right mouse button was held during the previous frame's `UpdateCamera` call. */
+	bool cameraDragging = false;
+	/** Cursor position recorded during the previous frame's `UpdateCamera` call. */
+	double lastCursorX = 0.0, lastCursorY = 0.0;
 };
 
 } // namespace Mupfel
