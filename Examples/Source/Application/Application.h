@@ -2,6 +2,7 @@
 #include "Logger/Logger.h"
 #include "Renderer/Renderer.h"
 #include "Window/Window.h"
+#include <chrono>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -37,6 +38,9 @@ private:
 	/** Polls window events and renders frames until the window is closed. */
 	void MainLoop();
 
+	/** Integrates every entity with a `Transform`+`Movement` pair's position by `velocity * delta_time`. */
+	void UpdateMovement(float delta_time);
+
 private:
 	/** Application name passed to the constructor. */
 	const std::string name;
@@ -52,6 +56,8 @@ private:
 	World world;
 	/** Incremented once per `MainLoop()` iteration. */
 	uint64_t frame_counter = 0;
+	/** Timestamp of the previous `MainLoop()` iteration, for computing `UpdateMovement`'s delta time. */
+	std::chrono::steady_clock::time_point lastFrameTime;
 };
 
 } // namespace Mupfel

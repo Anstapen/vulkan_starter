@@ -53,6 +53,15 @@ private:
 	void SyncRenderableObjects(World& world, const Ping::Device& device, uint32_t frame_index);
 
 	/**
+	 * Grows `transformBuffers` (and re-creates `transformDescriptorSets` to match) if
+	 * `required_capacity` exceeds the buffers' current capacity, doubling until it fits.
+	 *
+	 * @note Recreates every frame-in-flight buffer at once, gated behind `device.WaitForCommands()`,
+	 * since the buffers are re-synced from scratch each frame and don't need their old contents preserved.
+	 */
+	void EnsureTransformCapacity(const Ping::Device& device, uint32_t required_capacity);
+
+	/**
 	 * Update the Model-View-Projection matricies for a specific uniform buffer.
 	 */
 	void updateMVP(Ping::Buffer& uniform_buffer);
@@ -84,6 +93,8 @@ private:
 	std::vector<Ping::Buffer> uniformBuffers;
 	/** One storage buffer per frame in flight for the transform data */
 	std::vector<Ping::Buffer> transformBuffers;
+	/** Entity capacity each buffer in `transformBuffers` currently has room for; grown by `EnsureTransformCapacity`. */
+	uint32_t transformCapacity = 0;
 	/** Descriptor sets */
 	std::optional<Ping::DescriptorSets> descriptorSets;
 

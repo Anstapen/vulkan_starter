@@ -93,6 +93,7 @@ void Mupfel::Renderer::Init(const Ping::Device& device, const Window& window)
 			Ping::MemoryProperty::HostVisible | Ping::MemoryProperty::HostCoherent |
 				Ping::MemoryProperty::DeviceLocal));
 	}
+	transformCapacity = default_entity_capacity;
 
 	index_buffer = std::move(device.CreateBuffer(
 		sizeof(uint16_t) * indices.size(), Ping::BufferUsage::IndexBuffer | Ping::BufferUsage::TransferDst,
@@ -129,10 +130,42 @@ void Mupfel::Renderer::Init(const Ping::Device& device, const Window& window)
 	transformDescriptorSets = device.CreateStorageDescriptorSets(pipeline.value(), transformSetIndex, transformBuffers);
 }
 
+void Mupfel::Renderer::EnsureTransformCapacity(const Ping::Device& device, uint32_t required_capacity)
+{
+	if (required_capacity <= transformCapacity)
+	{
+		return;
+	}
+
+	uint32_t new_capacity = transformCapacity;
+	while (new_capacity < required_capacity)
+	{
+		new_capacity *= 2;
+	}
+
+	logger->info("Growing transform buffers from {} to {} entities", transformCapacity, new_capacity);
+
+	/* Every frame-in-flight buffer is recreated together, so no in-flight submission may still be
+	 * reading the old buffers/descriptor sets we're about to destroy. */
+	device.WaitForCommands();
+
+	transformBuffers.clear();
+	for (uint32_t i = 0; i < frames_in_flight; i++)
+	{
+		transformBuffers.emplace_back(device.CreateBuffer(
+			sizeof(Mupfel::Transform) * new_capacity, Ping::BufferUsage::StorageBuffer,
+			Ping::MemoryProperty::HostVisible | Ping::MemoryProperty::HostCoherent |
+				Ping::MemoryProperty::DeviceLocal));
+	}
+
+	transformDescriptorSets = device.CreateStorageDescriptorSets(pipeline.value(), transformSetIndex, transformBuffers);
+
+	transformCapacity = new_capacity;
+}
+
 void Mupfel::Renderer::SyncRenderableObjects(World& world, const Ping::Device& device, uint32_t frame_index)
 {
-	/* We are currently not taking any data from the CPU */
-	(void)device;
+	EnsureTransformCapacity(device, world.registry.GetCurrentEntities());
 
 	uint32_t buffer_index = 0;
 
@@ -180,7 +213,7 @@ void Mupfel::Renderer::UpdateCamera(const Window& window)
 	lastCursorX = cursorX;
 	lastCursorY = cursorY;
 
-	constexpr float zoomSensitivity = 0.3f;
+	constexpr float zoomSensitivity = 1.0f;
 	cameraDistance -= static_cast<float>(window.ConsumeScrollDeltaY()) * zoomSensitivity;
 	cameraDistance = glm::clamp(cameraDistance, 1.0f, 250.0f);
 }
@@ -208,7 +241,16 @@ void Mupfel::Renderer::RenderNextFrame(World& world, const Ping::Device& device,
 	}
 
 	gui.value().NewFrame();
-	ImGui::ShowDemoWindow();
+	//ImGui::ShowDemoWindow();
+	ImGui::ShowMetricsWindow();
+
+	ImGui::Begin("Entity Spawner");
+	ImGui::Text("Entity count: %u", world.registry.GetCurrentEntities());
+	if (ImGui::Button("Spawn 5000 Entities"))
+	{
+		world.SpawnRandomEntities(5000, 0.0f, 150.0f, kMaxEntityVelocity);
+	}
+	ImGui::End();
 
 	current_command_buffer.Begin(device, Ping::CommandBufferUsage::None);
 
