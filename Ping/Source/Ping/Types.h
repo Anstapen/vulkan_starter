@@ -279,6 +279,8 @@ struct DescriptorBinding
 	DescriptorType type;
 	/** Shader stage(s) that read this binding. */
 	ShaderStage stageFlags;
+	/** number of descriptors */
+	uint32_t count = 1;
 };
 
 enum class ImageUsage : uint32_t

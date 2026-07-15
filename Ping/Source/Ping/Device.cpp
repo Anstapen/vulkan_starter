@@ -162,6 +162,36 @@ DescriptorSets Ping::Device::CreateSamplerDescriptorSets(
 	return DescriptorSets(std::move(pool));
 }
 
+DescriptorSets Ping::Device::CreateTextureArrayDescriptorSet(
+	const Pipeline&											  pipeline,
+	uint32_t												  set_index,
+	uint32_t												  capacity,
+	const std::vector<Image>&								  images,
+	const std::vector<std::reference_wrapper<const Sampler>>& samplers,
+	const Image&											  fallback_image,
+	const Sampler&											  fallback_sampler) const
+{
+	std::vector<const Backend::VulkanImage*> backend_images;
+	backend_images.reserve(images.size());
+	for (const auto& image : images)
+	{
+		backend_images.push_back(image.vulkanImagePtr.get());
+	}
+
+	std::vector<const Backend::VulkanSampler*> backend_samplers;
+	backend_samplers.reserve(samplers.size());
+	for (const auto& sampler : samplers)
+	{
+		backend_samplers.push_back(sampler.get().vulkanSamplerPtr.get());
+	}
+
+	Backend::VulkanDescriptorPool pool = Backend::VKManager::CreateTextureArrayDescriptorSet(
+		*vulkanContextPtr.get(), *pipeline.vulkanPipelinePtr.get(), set_index, capacity, backend_images,
+		backend_samplers, *fallback_image.vulkanImagePtr.get(), *fallback_sampler.vulkanSamplerPtr.get());
+
+	return DescriptorSets(std::move(pool));
+}
+
 DescriptorSets Ping::Device::CreateStorageDescriptorSets(
 	const Pipeline&			   pipeline,
 	uint32_t				   set_index,

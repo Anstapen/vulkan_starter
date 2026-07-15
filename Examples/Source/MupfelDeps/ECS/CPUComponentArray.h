@@ -62,7 +62,8 @@ template <typename T> inline void CPUComponentArray<T>::Insert(Entity e, T compo
 	*/
 	if (e.Index() >= sparse.size())
 	{
-		sparse.resize((sparse.size() + 2) * 2, IComponentArray::invalid_entry);
+		std::size_t new_size = (static_cast<std::size_t>(e.Index()) + 2) * 2;
+		sparse.resize(new_size, IComponentArray::invalid_entry);
 	}
 
 	/*

@@ -101,6 +101,16 @@ public:
 		const std::vector<const VulkanImage*>&	 images,
 		const std::vector<const VulkanSampler*>& samplers);
 
+	static VulkanDescriptorPool CreateTextureArrayDescriptorSet(
+		const VulkanContext&					 context,
+		const VulkanPipeline&					 pipeline,
+		uint32_t								 set_index,
+		uint32_t								 capacity,
+		const std::vector<const VulkanImage*>&	 images,
+		const std::vector<const VulkanSampler*>& samplers,
+		const VulkanImage&						 fallback_image,
+		const VulkanSampler&					 fallback_sampler);
+
 	static VulkanDescriptorPool CreateStorageDescriptorSets(
 		const VulkanContext&					context,
 		const VulkanPipeline&					pipeline,

@@ -2,6 +2,7 @@
 
 #include "ECS/Components/Movement.h"
 #include "ECS/Components/Transform.h"
+#include "ECS/Components/Texture.h"
 
 Mupfel::World::World() : event_system(), registry(event_system) {}
 
@@ -9,6 +10,7 @@ void Mupfel::World::SpawnRandomEntities(uint32_t count, float min_pos, float max
 {
 	std::uniform_real_distribution<float> pos_dist(min_pos, max_pos);
 	std::uniform_real_distribution<float> velocity_dist(-max_velocity, max_velocity);
+	std::uniform_real_distribution<float> texture_dist(1, 5);
 
 	for (uint32_t n = 0; n < count; n++)
 	{
@@ -20,6 +22,10 @@ void Mupfel::World::SpawnRandomEntities(uint32_t count, float min_pos, float max
 		t.scale_x = 0.5f;
 		t.scale_y = 0.5f;
 		registry.AddComponent<Transform>(e, t);
+
+		Texture tex;
+		tex.index = texture_dist(rng);
+		registry.AddComponent<Texture>(e, tex);
 
 		Movement m;
 		m.velocity_x = velocity_dist(rng);

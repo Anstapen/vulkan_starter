@@ -48,6 +48,7 @@ void Mupfel::Application::Init()
 
 	std::mt19937						   rng(std::random_device{}());
 	std::uniform_real_distribution<float> velocity_dist(-kMaxEntityVelocity, kMaxEntityVelocity);
+	std::uniform_real_distribution<float>  texture_dist(1, 5);
 
 	for (uint32_t k = 0; k < 100; k++)
 	{
@@ -62,6 +63,10 @@ void Mupfel::Application::Init()
 			t.scale_y = 0.5f;
 			t.rotation = 0.0f;
 			world.registry.AddComponent<Transform>(e, t);
+
+			Texture tex;
+			tex.index = texture_dist(rng);
+			world.registry.AddComponent<Texture>(e, tex);
 
 			Movement m;
 			m.velocity_x = velocity_dist(rng);
@@ -88,7 +93,7 @@ void Mupfel::Application::MainLoop()
 
 		/* Sync from World to GPU buffers will be done in the Renderer */
 
-		renderer.RenderNextFrame(world, device.value(), window.value());
+		renderer.RenderNextFrame(world, device.value(), window.value(), delta_time);
 	}
 }
 

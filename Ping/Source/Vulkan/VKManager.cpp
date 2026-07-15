@@ -130,7 +130,7 @@ std::vector<vk::raii::DescriptorSetLayout> Backend::VKManager::CreateDescriptorS
 			layoutBindings.push_back(
 				{.binding = binding.binding,
 				 .descriptorType = ToVulkan(binding.type),
-				 .descriptorCount = 1,
+				 .descriptorCount = binding.count,
 				 .stageFlags = ToVulkan(binding.stageFlags)});
 		}
 
@@ -380,6 +380,57 @@ VulkanDescriptorPool Backend::VKManager::CreateSamplerDescriptorSets(
 		sets.push_back(std::move(set));
 	}
 
+	return VulkanDescriptorPool(std::move(pool), std::move(sets));
+}
+
+VulkanDescriptorPool Backend::VKManager::CreateTextureArrayDescriptorSet(
+	const VulkanContext&					 context,
+	const VulkanPipeline&					 pipeline,
+	uint32_t								 set_index,
+	uint32_t								 capacity,
+	const std::vector<const VulkanImage*>&	 images,
+	const std::vector<const VulkanSampler*>& samplers,
+	const VulkanImage&						 fallback_image,
+	const VulkanSampler&					 fallback_sampler)
+{
+	if (images.size() != samplers.size() || images.size() > capacity)
+		throw std::runtime_error("Texture array descriptor set: mismatched or over-capacity images/samplers!");
+
+	vk::DescriptorPoolSize poolSize{.type = vk::DescriptorType::eCombinedImageSampler, .descriptorCount = capacity};
+	vk::DescriptorPoolCreateInfo poolInfo{
+		.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
+		.maxSets = 1,
+		.poolSizeCount = 1,
+		.pPoolSizes = &poolSize};
+	vk::raii::DescriptorPool pool(context.device, poolInfo);
+
+	vk::DescriptorSetLayout		  layout = *pipeline.descriptorSetLayouts[set_index];
+	vk::DescriptorSetAllocateInfo allocInfo{.descriptorPool = pool, .descriptorSetCount = 1, .pSetLayouts = &layout};
+	vk::raii::DescriptorSets	  rawSets(context.device, allocInfo);
+
+	/* Fill every slot: loaded textures first, fallback texture for the remaining unused capacity. */
+	std::vector<vk::DescriptorImageInfo> imageInfos(capacity);
+	for (uint32_t i = 0; i < capacity; i++)
+	{
+		const VulkanImage&	 image = (i < images.size()) ? *images[i] : fallback_image;
+		const VulkanSampler& sampler = (i < samplers.size()) ? *samplers[i] : fallback_sampler;
+		imageInfos[i] = {
+			.sampler = *sampler.sampler,
+			.imageView = *image.imageView,
+			.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal};
+	}
+
+	vk::WriteDescriptorSet write{
+		.dstSet = rawSets[0],
+		.dstBinding = 0,
+		.dstArrayElement = 0,
+		.descriptorCount = capacity,
+		.descriptorType = vk::DescriptorType::eCombinedImageSampler,
+		.pImageInfo = imageInfos.data()};
+	context.device.updateDescriptorSets(write, {});
+
+	std::vector<vk::raii::DescriptorSet> sets;
+	sets.push_back(std::move(rawSets[0]));
 	return VulkanDescriptorPool(std::move(pool), std::move(sets));
 }
 
@@ -862,10 +913,12 @@ bool VKManager::IsDeviceSuitable(const vk::raii::PhysicalDevice& device)
 	}
 
 	auto features = device.template getFeatures2<
-		vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan13Features,
+		vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan12Features, vk::PhysicalDeviceVulkan13Features,
 		vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>();
 	bool supportsRequiredFeatures =
 		features.template get<vk::PhysicalDeviceFeatures2>().features.samplerAnisotropy &&
+		features.template get<vk::PhysicalDeviceFeatures2>().features.shaderSampledImageArrayDynamicIndexing &&
+		features.template get<vk::PhysicalDeviceVulkan12Features>().shaderSampledImageArrayNonUniformIndexing &&
 		features.template get<vk::PhysicalDeviceVulkan13Features>().dynamicRendering &&
 		features.template get<vk::PhysicalDeviceVulkan13Features>().synchronization2 &&
 		features.template get<vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>().extendedDynamicState;
@@ -917,11 +970,12 @@ vk::raii::Device VKManager::CreateLogicalDevice(
 
 	/* Select device features */
 	vk::StructureChain<
-		vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Features, vk::PhysicalDeviceVulkan13Features,
-		vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>
+		vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan11Features, vk::PhysicalDeviceVulkan12Features,
+		vk::PhysicalDeviceVulkan13Features, vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>
 		featureChain = {
-			{.features = {.samplerAnisotropy = true}},
+			{.features = {.samplerAnisotropy = true, .shaderSampledImageArrayDynamicIndexing = true}},
 			{.shaderDrawParameters = true},
+			{.shaderSampledImageArrayNonUniformIndexing = true},
 			{.synchronization2 = true, .dynamicRendering = true},
 			{.extendedDynamicState = true}};
 

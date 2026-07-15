@@ -44,6 +44,9 @@ public:
 	/** Whether `button` (a `GLFW_MOUSE_BUTTON_*` constant) is currently held down. */
 	bool GetMouseButtonDown(int button) const;
 
+	/** Whether `key` (a `GLFW_KEY_*` constant) is currently held down. */
+	bool GetKeyDown(int key) const;
+
 	/** Writes the cursor's current position (in screen coordinates) to `x`/`y`. */
 	void GetCursorPos(double& x, double& y) const;
 

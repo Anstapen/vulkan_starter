@@ -90,6 +90,15 @@ public:
 		const std::vector<Image>&								  images,
 		const std::vector<std::reference_wrapper<const Sampler>>& samplers) const;
 
+	DescriptorSets CreateTextureArrayDescriptorSet(
+		const Pipeline&											  pipeline,
+		uint32_t												  set_index,
+		uint32_t												  capacity,
+		const std::vector<Image>&								  images,
+		const std::vector<std::reference_wrapper<const Sampler>>& samplers,
+		const Image&											  fallback_image,
+		const Sampler&											  fallback_sampler) const;
+
 	DescriptorSets CreateStorageDescriptorSets(
 		const Pipeline&			   pipeline,
 		uint32_t				   set_index,

@@ -66,6 +66,8 @@ void Window::GetFramebufferSize(int32_t& width, int32_t& height) const
 
 bool Window::GetMouseButtonDown(int button) const { return glfwGetMouseButton(window, button) == GLFW_PRESS; }
 
+bool Window::GetKeyDown(int key) const { return glfwGetKey(window, key) == GLFW_PRESS; }
+
 void Window::GetCursorPos(double& x, double& y) const { glfwGetCursorPos(window, &x, &y); }
 
 double Window::ConsumeScrollDeltaY() const
