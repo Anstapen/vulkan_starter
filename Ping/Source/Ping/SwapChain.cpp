@@ -27,7 +27,7 @@ uint32_t Ping::SwapChain::AcquireNextImage(uint32_t frameIndex)
 
 [[nodiscard]] bool Ping::SwapChain::Present(const Device& device, uint32_t image_index)
 {
-	return vulkanSwapChainPtr->Present(*device.vulkanContextPtr.get(), image_index);
+	return vulkanSwapChainPtr->Present(*device.vulkanContextPtr, image_index);
 }
 
 void Ping::SwapChain::Recreate(const Device& device, GLFWwindow* window, uint32_t frames_in_flight)
@@ -38,11 +38,11 @@ void Ping::SwapChain::Recreate(const Device& device, GLFWwindow* window, uint32_
 	device.WaitForCommands();
 	vulkanSwapChainPtr.reset();
 	vulkanSwapChainPtr = std::make_unique<Backend::VulkanSwapChain>(
-		Backend::VKManager::CreateSwapChain(*device.vulkanContextPtr.get(), window, frames_in_flight));
+		Backend::VKManager::CreateSwapChain(*device.vulkanContextPtr, window, frames_in_flight));
 }
 
-std::tuple<uint32_t, uint32_t> Ping::SwapChain::GetExtent() const
+std::pair<uint32_t, uint32_t> Ping::SwapChain::GetExtent() const
 {
-	return std::tuple<uint32_t, uint32_t>(
+	return std::pair<uint32_t, uint32_t>(
 		vulkanSwapChainPtr->swapChainExtent.width, vulkanSwapChainPtr->swapChainExtent.height);
 }

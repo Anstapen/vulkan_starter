@@ -10,8 +10,20 @@ vk::ImageLayout Backend::ToVulkan(Ping::ImageLayout layout)
 		return vk::ImageLayout::eColorAttachmentOptimal;
 	case Ping::ImageLayout::PresentSource:
 		return vk::ImageLayout::ePresentSrcKHR;
+	case Ping::ImageLayout::DepthAttachmentOptimal:
+		return vk::ImageLayout::eDepthAttachmentOptimal;
 	}
 	throw std::runtime_error("Unhandled Ping::ImageLayout");
+}
+
+vk::ImageAspectFlags Backend::ToVulkan(Ping::ImageAspect aspect)
+{
+	vk::ImageAspectFlags result{};
+	if (Ping::HasFlag(aspect, Ping::ImageAspect::Color))
+		result |= vk::ImageAspectFlagBits::eColor;
+	if (Ping::HasFlag(aspect, Ping::ImageAspect::Depth))
+		result |= vk::ImageAspectFlagBits::eDepth;
+	return result;
 }
 
 vk::AccessFlags2 Backend::ToVulkan(Ping::AccessMask mask)
@@ -19,6 +31,8 @@ vk::AccessFlags2 Backend::ToVulkan(Ping::AccessMask mask)
 	vk::AccessFlags2 result{};
 	if (Ping::HasFlag(mask, Ping::AccessMask::ColorAttachmentWrite))
 		result |= vk::AccessFlagBits2::eColorAttachmentWrite;
+	if (Ping::HasFlag(mask, Ping::AccessMask::DepthStencilAttachmentWrite))
+		result |= vk::AccessFlagBits2::eDepthStencilAttachmentWrite;
 	return result;
 }
 
@@ -29,6 +43,10 @@ vk::PipelineStageFlags2 Backend::ToVulkan(Ping::PipelineStage stage)
 		result |= vk::PipelineStageFlagBits2::eColorAttachmentOutput;
 	if (Ping::HasFlag(stage, Ping::PipelineStage::BottomOfPipe))
 		result |= vk::PipelineStageFlagBits2::eBottomOfPipe;
+	if (Ping::HasFlag(stage, Ping::PipelineStage::EarlyFragmentTests))
+		result |= vk::PipelineStageFlagBits2::eEarlyFragmentTests;
+	if (Ping::HasFlag(stage, Ping::PipelineStage::LateFragmentTests))
+		result |= vk::PipelineStageFlagBits2::eLateFragmentTests;
 	return result;
 }
 

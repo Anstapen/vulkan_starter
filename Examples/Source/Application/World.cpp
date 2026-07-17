@@ -11,6 +11,7 @@ void Mupfel::World::SpawnRandomEntities(uint32_t count, float min_pos, float max
 	std::uniform_real_distribution<float> pos_dist(min_pos, max_pos);
 	std::uniform_real_distribution<float> velocity_dist(-max_velocity, max_velocity);
 	std::uniform_real_distribution<float> texture_dist(1, 5);
+	std::uniform_real_distribution<float> tilt_dist(0.01f, 0.99f);
 
 	for (uint32_t n = 0; n < count; n++)
 	{
@@ -19,6 +20,7 @@ void Mupfel::World::SpawnRandomEntities(uint32_t count, float min_pos, float max
 		Transform t;
 		t.pos_x = pos_dist(rng);
 		t.pos_y = pos_dist(rng);
+		t.tilt = tilt_dist(rng);
 		t.scale_x = 0.5f;
 		t.scale_y = 0.5f;
 		registry.AddComponent<Transform>(e, t);

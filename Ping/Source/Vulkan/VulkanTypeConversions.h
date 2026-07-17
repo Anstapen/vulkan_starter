@@ -15,6 +15,8 @@ namespace Backend
 /** @throws std::runtime_error if `layout` has no known `vk::ImageLayout` mapping. */
 vk::ImageLayout ToVulkan(Ping::ImageLayout layout);
 
+vk::ImageAspectFlags ToVulkan(Ping::ImageAspect aspect);
+
 /** Bitwise-ORs together the `vk::AccessFlagBits2` for every flag set in `mask`. */
 vk::AccessFlags2 ToVulkan(Ping::AccessMask mask);
 

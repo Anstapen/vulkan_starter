@@ -2,6 +2,7 @@
 #include "Buffer.h"
 #include "CommandBuffer.h"
 #include "DescriptorSets.h"
+#include "Error.h"
 #include "Gui.h"
 #include "Image.h"
 #include "Pipeline.h"
@@ -76,6 +77,9 @@ public:
 
 	/** Allocates a GPU buffer of `size` bytes with the given usage and memory properties. */
 	std::optional<Image> CreateImage(const std::string& path, Ping::ImageUsage usage) const;
+
+	/** Allocates a GPU buffer of `size` bytes with the given usage and memory properties. */
+	std::optional<Image> CreateDepthBuffer(const SwapChain& swapchain) const;
 
 	Sampler CreateSampler(const SamplerSpecification& sampler_spec) const;
 

@@ -55,7 +55,7 @@ Device& Ping::Device::operator=(Device&& other)
 
 SwapChain Ping::Device::CreateSwapChain(GLFWwindow* window, uint32_t frames_in_flight) const
 {
-	auto vulkanSwapChain = Backend::VKManager::CreateSwapChain(*vulkanContextPtr.get(), window, frames_in_flight);
+	auto vulkanSwapChain = Backend::VKManager::CreateSwapChain(*vulkanContextPtr, window, frames_in_flight);
 
 	return SwapChain(std::move(vulkanSwapChain));
 }
@@ -63,7 +63,7 @@ SwapChain Ping::Device::CreateSwapChain(GLFWwindow* window, uint32_t frames_in_f
 Pipeline Ping::Device::CreatePipeline(const PipelineSpecification& specification, const SwapChain& swapchain) const
 {
 	Backend::VulkanPipeline vulkanPipeline =
-		Backend::VKManager::CreatePipeline(*vulkanContextPtr.get(), specification, *swapchain.vulkanSwapChainPtr.get());
+		Backend::VKManager::CreatePipeline(*vulkanContextPtr, specification, *swapchain.vulkanSwapChainPtr);
 	return Pipeline(std::move(vulkanPipeline));
 }
 
@@ -74,7 +74,7 @@ CommandBuffers Ping::Device::CreateCommandBuffers(QueueType buffer_type, uint32_
 		return CommandBuffers();
 	}
 
-	auto backend_buffers = Backend::VKManager::CreateCommandBuffers(*vulkanContextPtr.get(), buffer_type, num_buffers);
+	auto backend_buffers = Backend::VKManager::CreateCommandBuffers(*vulkanContextPtr, buffer_type, num_buffers);
 
 	if (backend_buffers.size() == 0)
 	{
@@ -94,14 +94,14 @@ CommandBuffers Ping::Device::CreateCommandBuffers(QueueType buffer_type, uint32_
 Buffer Ping::Device::CreateBuffer(size_t size, BufferUsage usage, MemoryProperty property) const
 {
 	Backend::VulkanBuffer buffer = Backend::VKManager::CreateBuffer(
-		*vulkanContextPtr.get(), size, Backend::ToVulkan(usage), Backend::ToVulkan(property));
+		*vulkanContextPtr, size, Backend::ToVulkan(usage), Backend::ToVulkan(property));
 	return Buffer(std::move(buffer));
 }
 
 std::optional<Image> Ping::Device::CreateImage(const std::string& path, Ping::ImageUsage usage) const
 {
 	std::optional<Backend::VulkanImage> vk_image =
-		Backend::VKManager::LoadVulkanImage(*vulkanContextPtr.get(), path, Backend::ToVulkan(usage));
+		Backend::VKManager::LoadVulkanImage(*vulkanContextPtr, path, Backend::ToVulkan(usage));
 
 	if (!vk_image.has_value())
 	{
@@ -111,9 +111,18 @@ std::optional<Image> Ping::Device::CreateImage(const std::string& path, Ping::Im
 	return {std::move(vk_image)};
 }
 
+std::optional<Image> Ping::Device::CreateDepthBuffer(const SwapChain& swapchain) const
+{
+	Backend::VulkanImage vk_image = Backend::VKManager::CreateImage(
+		*vulkanContextPtr, swapchain.GetExtent().first, swapchain.GetExtent().second, vk::Format::eD32Sfloat,
+		vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eDepthStencilAttachment, vk::ImageAspectFlagBits::eDepth,
+		vk::MemoryPropertyFlagBits::eDeviceLocal);
+	return {std::move(vk_image)};
+}
+
 Sampler Ping::Device::CreateSampler(const SamplerSpecification& sampler_spec) const
 {
-	Backend::VulkanSampler sampler = Backend::VKManager::CreateSampler(*vulkanContextPtr.get(), sampler_spec);
+	Backend::VulkanSampler sampler = Backend::VKManager::CreateSampler(*vulkanContextPtr, sampler_spec);
 	return Sampler(std::move(sampler));
 }
 
@@ -131,7 +140,7 @@ DescriptorSets Ping::Device::CreateDescriptorSets(
 	}
 
 	Backend::VulkanDescriptorPool pool = Backend::VKManager::CreateUBODescriptorSets(
-		*vulkanContextPtr.get(), *pipeline.vulkanPipelinePtr.get(), set_index, backend_buffers);
+		*vulkanContextPtr, *pipeline.vulkanPipelinePtr, set_index, backend_buffers);
 
 	return DescriptorSets(std::move(pool));
 }
@@ -157,7 +166,7 @@ DescriptorSets Ping::Device::CreateSamplerDescriptorSets(
 	}
 
 	Backend::VulkanDescriptorPool pool = Backend::VKManager::CreateSamplerDescriptorSets(
-		*vulkanContextPtr.get(), *pipeline.vulkanPipelinePtr.get(), set_index, backend_images, backend_samplers);
+		*vulkanContextPtr, *pipeline.vulkanPipelinePtr, set_index, backend_images, backend_samplers);
 
 	return DescriptorSets(std::move(pool));
 }
@@ -186,8 +195,8 @@ DescriptorSets Ping::Device::CreateTextureArrayDescriptorSet(
 	}
 
 	Backend::VulkanDescriptorPool pool = Backend::VKManager::CreateTextureArrayDescriptorSet(
-		*vulkanContextPtr.get(), *pipeline.vulkanPipelinePtr.get(), set_index, capacity, backend_images,
-		backend_samplers, *fallback_image.vulkanImagePtr.get(), *fallback_sampler.vulkanSamplerPtr.get());
+		*vulkanContextPtr, *pipeline.vulkanPipelinePtr, set_index, capacity, backend_images,
+		backend_samplers, *fallback_image.vulkanImagePtr, *fallback_sampler.vulkanSamplerPtr);
 
 	return DescriptorSets(std::move(pool));
 }
@@ -206,7 +215,7 @@ DescriptorSets Ping::Device::CreateStorageDescriptorSets(
 	}
 
 	Backend::VulkanDescriptorPool pool = Backend::VKManager::CreateStorageDescriptorSets(
-		*vulkanContextPtr.get(), *pipeline.vulkanPipelinePtr.get(), set_index, backend_buffers);
+		*vulkanContextPtr, *pipeline.vulkanPipelinePtr, set_index, backend_buffers);
 
 	return DescriptorSets(std::move(pool));
 }
@@ -214,7 +223,7 @@ DescriptorSets Ping::Device::CreateStorageDescriptorSets(
 Gui Ping::Device::CreateGui(GLFWwindow* window, const SwapChain& swapchain, uint32_t frames_in_flight) const
 {
 	Backend::VulkanGui vulkanGui = Backend::VKManager::CreateGui(
-		*vulkanContextPtr.get(), window, *swapchain.vulkanSwapChainPtr.get(), frames_in_flight);
+		*vulkanContextPtr, window, *swapchain.vulkanSwapChainPtr, frames_in_flight);
 	return Gui(std::move(vulkanGui));
 }
 

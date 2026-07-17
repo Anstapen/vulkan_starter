@@ -41,27 +41,34 @@ void Ping::CommandBuffer::transitionImageLayout(
 	const ImageLayoutTransition& transition)
 {
 	Backend::VKManager::transitionImageLayout(
-		*vulkanCommandBufferPtr.get(), *swapchain.vulkanSwapChainPtr.get(), image_index, transition);
+		*vulkanCommandBufferPtr, *swapchain.vulkanSwapChainPtr, image_index, transition);
 }
 
-void Ping::CommandBuffer::BeginRendering(SwapChain& swapchain, uint32_t image_index)
+void Ping::CommandBuffer::transitionImageLayout(Image& image, const ImageLayoutTransition& transition)
 {
-	Backend::VKManager::beginRendering(*vulkanCommandBufferPtr.get(), *swapchain.vulkanSwapChainPtr.get(), image_index);
+	Backend::VKManager::transitionImageLayout(*vulkanCommandBufferPtr, *image.vulkanImagePtr, transition);
+}
+
+void Ping::CommandBuffer::BeginRendering(SwapChain& swapchain, Image& depth_buffer, uint32_t image_index)
+{
+	Backend::VKManager::beginRendering(
+		*vulkanCommandBufferPtr, *swapchain.vulkanSwapChainPtr, *depth_buffer.vulkanImagePtr,
+		image_index);
 }
 
 void Ping::CommandBuffer::BindPipeline(Pipeline& pipeline)
 {
-	vulkanCommandBufferPtr->BindPipeline(*pipeline.vulkanPipelinePtr.get());
+	vulkanCommandBufferPtr->BindPipeline(*pipeline.vulkanPipelinePtr);
 }
 
 void Ping::CommandBuffer::BindVertexBuffer(const Buffer& buffer, uint32_t binding) const
 {
-	vulkanCommandBufferPtr->BindVertexBuffer(*buffer.vulkanBufferPtr.get(), binding);
+	vulkanCommandBufferPtr->BindVertexBuffer(*buffer.vulkanBufferPtr, binding);
 }
 
 void Ping::CommandBuffer::BindIndexBuffer(const Buffer& buffer) const
 {
-	vulkanCommandBufferPtr->BindIndexBuffer(*buffer.vulkanBufferPtr.get());
+	vulkanCommandBufferPtr->BindIndexBuffer(*buffer.vulkanBufferPtr);
 }
 
 void Ping::CommandBuffer::BindDescriptorSet(
@@ -71,12 +78,12 @@ void Ping::CommandBuffer::BindDescriptorSet(
 	uint32_t			  set_index) const
 {
 	vulkanCommandBufferPtr->BindDescriptorSet(
-		*pipeline.vulkanPipelinePtr.get(), *descriptor_sets.vulkanDescriptorPoolPtr.get(), set_element, set_index);
+		*pipeline.vulkanPipelinePtr, *descriptor_sets.vulkanDescriptorPoolPtr, set_element, set_index);
 }
 
 void Ping::CommandBuffer::DrawGui(const Device& device, const Gui& gui, uint32_t frame_index) const
 {
-	vulkanCommandBufferPtr->DrawGui(*device.vulkanContextPtr.get(), *gui.vulkanGuiPtr.get(), frame_index);
+	vulkanCommandBufferPtr->DrawGui(*device.vulkanContextPtr, *gui.vulkanGuiPtr, frame_index);
 }
 
 void Ping::CommandBuffer::Submit(
@@ -86,7 +93,7 @@ void Ping::CommandBuffer::Submit(
 	uint32_t		 imageIndex)
 {
 	vulkanCommandBufferPtr->Submit(
-		*device.vulkanContextPtr.get(), *swapchain.vulkanSwapChainPtr.get(), frameIndex, imageIndex);
+		*device.vulkanContextPtr, *swapchain.vulkanSwapChainPtr, frameIndex, imageIndex);
 }
 
 void Ping::CommandBuffer::Draw(uint32_t vertex_count) const { vulkanCommandBufferPtr->Draw(vertex_count); }

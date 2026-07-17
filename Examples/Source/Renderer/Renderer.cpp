@@ -64,7 +64,7 @@ struct TextureInstance
 	float	 pos_x = 0.0f;
 	float	 pos_y = 0.0f;
 	float	 pos_z = 0.0f;
-	float	 _pad1;
+	float	 tilt = 0.0f;
 	float	 scale_x = 1.0f;
 	float	 scale_y = 1.0f;
 	float	 rotation = 0.0f;
@@ -81,12 +81,14 @@ struct LineInstance
 static const std::string defaul_image_path = "Images/ball_default.png";
 
 static const uint32_t default_entity_capacity = 100000;
+static const uint32_t default_line_capacity = 100;
 
 void Mupfel::Renderer::Init(const Ping::Device& device, const Window& window)
 {
 	logger = Logger::Create("Renderer");
 	logger->info("Init");
 	swapchain = device.CreateSwapChain(window.GetGLFWHandle(), frames_in_flight);
+	depthBuffer = device.CreateDepthBuffer(swapchain.value());
 	Ping::PipelineSpecification pipeline_spec{
 		"Shaders/slang.spv",
 		Vertex::GetVertexLayout(),
@@ -129,6 +131,11 @@ void Mupfel::Renderer::Init(const Ping::Device& device, const Window& window)
 		/* Create transform buffers to render entities */
 		textureInstanceBuffers.emplace_back(device.CreateBuffer(
 			sizeof(TextureInstance) * default_entity_capacity, Ping::BufferUsage::StorageBuffer,
+			Ping::MemoryProperty::HostVisible | Ping::MemoryProperty::HostCoherent |
+				Ping::MemoryProperty::DeviceLocal));
+
+		lineInstanceBuffers.emplace_back(device.CreateBuffer(
+			sizeof(LineInstance) * default_line_capacity, Ping::BufferUsage::StorageBuffer,
 			Ping::MemoryProperty::HostVisible | Ping::MemoryProperty::HostCoherent |
 				Ping::MemoryProperty::DeviceLocal));
 	}
@@ -187,11 +194,26 @@ void Mupfel::Renderer::Init(const Ping::Device& device, const Window& window)
 		return;
 	}
 
+	std::optional<Ping::Image> grass = device.CreateImage("Images/grass_1.png", Ping::ImageUsage::Sampled);
+
+	if (!grass.has_value())
+	{
+		logger->warn("Unable to load {}.", "Images/grass_1.png");
+		return;
+	}
+
 	images.push_back(std::move(default_image.value()));
 	images.push_back(std::move(blue_ball.value()));
 	images.push_back(std::move(green_ball.value()));
 	images.push_back(std::move(red_ball.value()));
 	images.push_back(std::move(yellow_ball.value()));
+	images.push_back(std::move(grass.value()));
+	imagePaths.push_back(defaul_image_path);
+	imagePaths.push_back("Images/ball_blue.png");
+	imagePaths.push_back("Images/ball_green.png");
+	imagePaths.push_back("Images/ball_red.png");
+	imagePaths.push_back("Images/ball_yellow.png");
+	imagePaths.push_back("Images/grass_1.png");
 	samplers.push_back(device.CreateSampler(
 		{.filterMode = Ping::SamplerFilterMode::Linear,
 		 .mipmapMode = Ping::SamplerMipMapMode::Linear,
@@ -232,6 +254,11 @@ void Mupfel::Renderer::Init(const Ping::Device& device, const Window& window)
 	/* Reuses the same uniformBuffers `updateMVP` already writes every frame � only the descriptor set
 	 * (tied to linePipeline's own layout) needs to be new, not the underlying buffers. */
 	lineUboDescriptorSets = device.CreateDescriptorSets(linePipeline.value(), lineUboSetIndex, uniformBuffers);
+
+	lineInstanceDescriptorSets =
+		device.CreateStorageDescriptorSets(linePipeline.value(), lineInstanceSetIndex, lineInstanceBuffers);
+
+	lineInstanceCapacity = default_line_capacity;
 }
 
 void Mupfel::Renderer::EnsureTransformCapacity(const Ping::Device& device, uint32_t required_capacity)
@@ -296,8 +323,6 @@ void Mupfel::Renderer::EnsureLineInstanceCapacity(const Ping::Device& device, ui
 
 void Mupfel::Renderer::SyncRenderableLines(World& world, const Ping::Device& device, uint32_t frame_index)
 {
-	/* GetCurrentEntities() over-counts (not every entity has RenderedLine), but it's a cheap O(1)
-	 * upper bound � same trade-off EnsureTransformCapacity makes for transformBuffers. */
 	EnsureLineInstanceCapacity(device, world.registry.GetCurrentEntities());
 
 	LineInstance* buffer = static_cast<LineInstance*>(lineInstanceBuffers[frame_index].GetMappedPtr());
@@ -330,6 +355,7 @@ void Mupfel::Renderer::SyncRenderableObjects(World& world, const Ping::Device& d
 		buffer[buffer_index].pos_y = transform.pos_y;
 		buffer[buffer_index].pos_z = transform.pos_z;
 		buffer[buffer_index].rotation = transform.rotation;
+		buffer[buffer_index].tilt = transform.tilt;
 		buffer[buffer_index].scale_x = transform.scale_x;
 		buffer[buffer_index].scale_y = transform.scale_y;
 		buffer_index++;
@@ -374,8 +400,8 @@ void Mupfel::Renderer::DrawLineSpawnerUI(World& world)
 	uint32_t line_count = 0;
 	for (auto [e, line] : world.registry.view<RenderedLine>())
 	{
-		(void) e;
-		(void) line;
+		(void)e;
+		(void)line;
 		line_count++;
 	}
 	ImGui::Text("Lines: %u", line_count);
@@ -390,12 +416,159 @@ void Mupfel::Renderer::DrawLineSpawnerUI(World& world)
 		std::vector<Entity> lines_to_remove;
 		for (auto [e, line] : world.registry.view<RenderedLine>())
 		{
-			(void) line;
+			(void)line;
 			lines_to_remove.push_back(e);
 		}
 		for (Entity e : lines_to_remove)
 		{
 			world.registry.DestroyEntity(e);
+		}
+	}
+
+	ImGui::End();
+}
+
+std::optional<uint32_t> Mupfel::Renderer::LoadTexture(const Ping::Device& device, const std::string& path)
+{
+	for (size_t i = 0; i < imagePaths.size(); i++)
+	{
+		if (imagePaths[i] == path)
+		{
+			return static_cast<uint32_t>(i);
+		}
+	}
+
+	if (images.size() >= max_textures)
+	{
+		logger->warn("Cannot load {}: texture array is full ({} entries)", path, max_textures);
+		return std::nullopt;
+	}
+
+	std::optional<Ping::Image> image = device.CreateImage(path, Ping::ImageUsage::Sampled);
+	if (!image.has_value())
+	{
+		logger->warn("Unable to load {}.", path);
+		return std::nullopt;
+	}
+
+	/* samplerDescriptorSets is about to be destroyed and replaced; its bindings were only ever
+	 * written once, at creation time, so no in-flight command buffer may still reference it. */
+	device.WaitForCommands();
+
+	images.push_back(std::move(image.value()));
+	imagePaths.push_back(path);
+
+	std::vector<std::reference_wrapper<const Ping::Sampler>> sampler_refs(images.size(), samplers.front());
+	samplerDescriptorSets = device.CreateTextureArrayDescriptorSet(
+		pipeline.value(), samplerSetIndex, max_textures, images, sampler_refs, images.front(), samplers.front());
+
+	return static_cast<uint32_t>(images.size() - 1);
+}
+
+void Mupfel::Renderer::DrawTextureFileBrowserPopup(const Ping::Device& device)
+{
+	if (!ImGui::BeginPopupModal("TextureFileBrowser"))
+	{
+		return;
+	}
+
+	ImGui::Text("%s", currentBrowseDir.string().c_str());
+	ImGui::SameLine();
+	if (ImGui::Button("Up") && currentBrowseDir.has_parent_path())
+	{
+		currentBrowseDir = currentBrowseDir.parent_path();
+	}
+
+	ImGui::BeginChild("FileList", ImVec2(400, 300), true);
+	for (const auto& entry : std::filesystem::directory_iterator(currentBrowseDir))
+	{
+		std::string name = entry.path().filename().string();
+		if (entry.is_directory())
+		{
+			if (ImGui::Selectable((name + "/").c_str()))
+			{
+				currentBrowseDir = entry.path();
+			}
+		}
+		else if (entry.path().extension() == ".png")
+		{
+			if (ImGui::Selectable(name.c_str()))
+			{
+				std::optional<uint32_t> index = LoadTexture(device, entry.path().string());
+				if (index.has_value())
+				{
+					selectedTextureIndex = index.value();
+					selectedTexturePath = entry.path().string();
+				}
+				ImGui::CloseCurrentPopup();
+			}
+		}
+	}
+	ImGui::EndChild();
+
+	if (ImGui::Button("Cancel"))
+	{
+		ImGui::CloseCurrentPopup();
+	}
+
+	ImGui::EndPopup();
+}
+
+void Mupfel::Renderer::DrawEntityCreatorUI(World& world, const Ping::Device& device)
+{
+	ImGui::Begin("Entity Creator");
+
+	ImGui::Checkbox("Transform", &creatorAddTransform);
+	if (creatorAddTransform)
+	{
+		ImGui::Indent();
+		ImGui::DragFloat3("Position", &creatorTransform.pos_x, 0.1f);
+		ImGui::DragFloat2("Scale", &creatorTransform.scale_x, 0.05f, 0.01f, 100.0f);
+		ImGui::SliderAngle("Rotation (yaw)", &creatorTransform.rotation);
+		ImGui::SliderAngle("Tilt", &creatorTransform.tilt);
+		ImGui::Unindent();
+	}
+
+	ImGui::Checkbox("Movement", &creatorAddMovement);
+	if (creatorAddMovement)
+	{
+		ImGui::Indent();
+		ImGui::DragFloat3("Velocity", &creatorMovement.velocity_x, 0.1f);
+		ImGui::DragFloat("Angular Velocity", &creatorMovement.angular_velocity, 0.05f);
+		ImGui::DragFloat("Initial Acceleration", &creatorMovement.initial_acceleration, 0.05f);
+		ImGui::DragFloat("Acceleration Decay", &creatorMovement.acceleration_decay, 0.01f, 0.0f, 1.0f);
+		ImGui::DragFloat("Friction", &creatorMovement.friction, 0.01f, 0.0f, 1.0f);
+		ImGui::Unindent();
+	}
+
+	ImGui::Checkbox("Texture", &creatorAddTexture);
+	if (creatorAddTexture)
+	{
+		ImGui::Indent();
+		ImGui::Text("Selected: %s", selectedTexturePath.empty() ? "(none)" : selectedTexturePath.c_str());
+		if (ImGui::Button("Browse..."))
+		{
+			currentBrowseDir = "Images";
+			ImGui::OpenPopup("TextureFileBrowser");
+		}
+		DrawTextureFileBrowserPopup(device);
+		ImGui::Unindent();
+	}
+
+	if (ImGui::Button("Create Entity"))
+	{
+		Entity e = world.registry.CreateEntity();
+		if (creatorAddTransform)
+		{
+			world.registry.AddComponent<Transform>(e, creatorTransform);
+		}
+		if (creatorAddMovement)
+		{
+			world.registry.AddComponent<Movement>(e, creatorMovement);
+		}
+		if (creatorAddTexture)
+		{
+			world.registry.AddComponent<Texture>(e, Texture{selectedTextureIndex});
 		}
 	}
 
@@ -477,6 +650,7 @@ void Mupfel::Renderer::RenderNextFrame(World& world, const Ping::Device& device,
 	{
 		/* Image was resized, swapchain needs to be recreated */
 		swapchain.value().Recreate(device, window.GetGLFWHandle(), frames_in_flight);
+		depthBuffer = device.CreateDepthBuffer(swapchain.value());
 		return;
 	}
 
@@ -493,6 +667,7 @@ void Mupfel::Renderer::RenderNextFrame(World& world, const Ping::Device& device,
 	ImGui::End();
 
 	DrawLineSpawnerUI(world);
+	DrawEntityCreatorUI(world, device);
 
 	current_command_buffer.Begin(device, Ping::CommandBufferUsage::None);
 
@@ -502,11 +677,22 @@ void Mupfel::Renderer::RenderNextFrame(World& world, const Ping::Device& device,
 		.srcAccessMask = Ping::AccessMask::None,
 		.dstAccessMask = Ping::AccessMask::ColorAttachmentWrite,
 		.srcStage = Ping::PipelineStage::ColorAttachmentOutput,
-		.dstStage = Ping::PipelineStage::ColorAttachmentOutput};
+		.dstStage = Ping::PipelineStage::ColorAttachmentOutput,
+		.aspect = Ping::ImageAspect::Color};
 
 	current_command_buffer.transitionImageLayout(swapchain.value(), image_index, layout_transition);
 
-	current_command_buffer.BeginRendering(swapchain.value(), image_index);
+	layout_transition.oldLayout = Ping::ImageLayout::Undefined;
+	layout_transition.newLayout = Ping::ImageLayout::DepthAttachmentOptimal;
+	layout_transition.srcAccessMask = Ping::AccessMask::DepthStencilAttachmentWrite;
+	layout_transition.dstAccessMask = Ping::AccessMask::DepthStencilAttachmentWrite;
+	layout_transition.srcStage = Ping::PipelineStage::EarlyFragmentTests | Ping::PipelineStage::LateFragmentTests;
+	layout_transition.dstStage = Ping::PipelineStage::EarlyFragmentTests | Ping::PipelineStage::LateFragmentTests;
+	layout_transition.aspect = Ping::ImageAspect::Depth;
+
+	current_command_buffer.transitionImageLayout(depthBuffer.value(), layout_transition);
+
+	current_command_buffer.BeginRendering(swapchain.value(), depthBuffer.value(), image_index);
 
 	current_command_buffer.BindPipeline(pipeline.value());
 
@@ -547,7 +733,9 @@ void Mupfel::Renderer::RenderNextFrame(World& world, const Ping::Device& device,
 	layout_transition.newLayout = Ping::ImageLayout::PresentSource;
 	layout_transition.srcAccessMask = Ping::AccessMask::ColorAttachmentWrite;
 	layout_transition.dstAccessMask = Ping::AccessMask::None;
+	layout_transition.srcStage = Ping::PipelineStage::ColorAttachmentOutput;
 	layout_transition.dstStage = Ping::PipelineStage::BottomOfPipe;
+	layout_transition.aspect = Ping::ImageAspect::Color;
 
 	current_command_buffer.transitionImageLayout(swapchain.value(), image_index, layout_transition);
 
@@ -559,6 +747,7 @@ void Mupfel::Renderer::RenderNextFrame(World& world, const Ping::Device& device,
 	{
 		/* Image was resized, swapchain needs to be recreated */
 		swapchain.value().Recreate(device, window.GetGLFWHandle(), frames_in_flight);
+		depthBuffer = device.CreateDepthBuffer(swapchain.value());
 	}
 
 	incrementFrameIndex();

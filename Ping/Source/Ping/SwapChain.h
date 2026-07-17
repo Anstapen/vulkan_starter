@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <memory>
-#include <tuple>
+#include <utility>
 
 /* forward declaration to avoid pulling GLFW headers into this public-facing header */
 struct GLFWwindow;
@@ -63,7 +63,7 @@ public:
 	 */
 	void Recreate(const Device& device, GLFWwindow* window, uint32_t frames_in_flight);
 
-	std::tuple<uint32_t, uint32_t> GetExtent() const;
+	std::pair<uint32_t, uint32_t> GetExtent() const;
 
 private:
 	/** Owning pointer to the backend swapchain. */

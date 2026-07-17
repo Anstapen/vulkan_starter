@@ -19,7 +19,25 @@ enum class ImageLayout
 	ColorAttachmentOptimal,
 	/** Required layout before an image is handed to `SwapChain::Present`. */
 	PresentSource,
+	DepthAttachmentOptimal
 };
+
+enum class ImageAspect : uint32_t
+{
+	Undefined = 0,
+	Color = 1 << 0,
+	Depth = 1 << 1
+};
+
+constexpr ImageAspect operator|(ImageAspect lhs, ImageAspect rhs)
+{
+	return static_cast<ImageAspect>(static_cast<uint32_t>(lhs) | static_cast<uint32_t>(rhs));
+}
+
+constexpr bool HasFlag(ImageAspect value, ImageAspect flag)
+{
+	return (static_cast<uint32_t>(value) & static_cast<uint32_t>(flag)) != 0;
+}
 
 /**
  * Bitmask mirror of `vk::AccessFlags2`, restricted to the access types this RHI currently
@@ -30,6 +48,7 @@ enum class AccessMask : uint32_t
 	None = 0,
 	/** Write access to a color attachment. */
 	ColorAttachmentWrite = 1 << 0,
+	DepthStencilAttachmentWrite = 1 << 2
 };
 
 /** Combines two AccessMask flags. See the `Ping/Types.h` bitmask-enum pattern documented in CLAUDE.md. */
@@ -55,6 +74,8 @@ enum class PipelineStage : uint32_t
 	ColorAttachmentOutput = 1 << 0,
 	/** The final stage of the pipeline; used as a synchronization sentinel. */
 	BottomOfPipe = 1 << 1,
+	EarlyFragmentTests = 1 << 2,
+	LateFragmentTests = 1 << 3
 };
 
 /** Combines two PipelineStage flags. See the `Ping/Types.h` bitmask-enum pattern documented in CLAUDE.md. */
@@ -87,6 +108,7 @@ struct ImageLayoutTransition
 	PipelineStage srcStage;
 	/** Pipeline stage(s) that must wait for the transition to complete. */
 	PipelineStage dstStage;
+	ImageAspect	  aspect;
 };
 
 /** Identifies which queue family a set of command buffers should be created against. */

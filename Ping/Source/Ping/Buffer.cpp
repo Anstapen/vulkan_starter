@@ -23,12 +23,12 @@ uint64_t Ping::Buffer::Size() const { return vulkanBufferPtr->Size(); }
 
 void Ping::Buffer::Resize(const Device& device, uint64_t new_size)
 {
-	vulkanBufferPtr->Resize(*device.vulkanContextPtr.get(), new_size);
+	vulkanBufferPtr->Resize(*device.vulkanContextPtr, new_size);
 }
 
 void* Ping::Buffer::GetMappedPtr() { return vulkanBufferPtr->GetMappedPtr(); }
 
 void Ping::Buffer::CopyHostData(const Device& device, const void* src, uint64_t size)
 {
-	vulkanBufferPtr->CopyHostData(*device.vulkanContextPtr.get(), src, size);
+	vulkanBufferPtr->CopyHostData(*device.vulkanContextPtr, src, size);
 }

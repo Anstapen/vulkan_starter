@@ -4,6 +4,7 @@
 #include "Gui.h"
 #include "Pipeline.h"
 #include "SwapChain.h"
+#include "Image.h"
 #include "Types.h"
 #include <cstdint>
 #include <memory>
@@ -50,11 +51,13 @@ public:
 	/** Records a pipeline barrier that transitions `swapchain`'s image at `image_index` per `transition`. */
 	void transitionImageLayout(SwapChain& swapchain, uint32_t image_index, const ImageLayoutTransition& transition);
 
+	void transitionImageLayout(Image& image, const ImageLayoutTransition& transition);
+
 	/**
 	 * Begins dynamic rendering into `swapchain`'s image at `image_index`. Requires a prior transition to
 	 * `ImageLayout::ColorAttachmentOptimal`.
 	 */
-	void BeginRendering(SwapChain& swapchain, uint32_t image_index);
+	void BeginRendering(SwapChain& swapchain, Image& depth_buffer, uint32_t image_index);
 
 	/** Binds `pipeline` for subsequent draw calls. */
 	void BindPipeline(Pipeline& pipeline);

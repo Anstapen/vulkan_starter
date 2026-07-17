@@ -45,35 +45,6 @@ void Mupfel::Application::Init()
 	window = Window();
 	device = Ping::Device(Ping::DeviceSpecification(), window.value().GetGLFWHandle());
 	renderer.Init(device.value(), window.value());
-
-	std::mt19937						   rng(std::random_device{}());
-	std::uniform_real_distribution<float> velocity_dist(-kMaxEntityVelocity, kMaxEntityVelocity);
-	std::uniform_real_distribution<float>  texture_dist(1, 5);
-
-	for (uint32_t k = 0; k < 100; k++)
-	{
-		for (uint32_t i = 0; i < 100; i++)
-		{
-			Entity	  e = world.registry.CreateEntity();
-			Transform t;
-			t.pos_x = static_cast<float>(k/2);
-			t.pos_y = static_cast<float>(i/2);
-			t.pos_z = 0.0f;
-			t.scale_x = 0.5f;
-			t.scale_y = 0.5f;
-			t.rotation = 0.0f;
-			world.registry.AddComponent<Transform>(e, t);
-
-			Texture tex;
-			tex.index = texture_dist(rng);
-			world.registry.AddComponent<Texture>(e, tex);
-
-			Movement m;
-			m.velocity_x = velocity_dist(rng);
-			m.velocity_y = velocity_dist(rng);
-			world.registry.AddComponent<Movement>(e, m);
-		}
-	}
 }
 
 void Mupfel::Application::MainLoop()

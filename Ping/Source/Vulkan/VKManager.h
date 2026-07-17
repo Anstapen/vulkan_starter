@@ -62,8 +62,7 @@ public:
 	 * Creates a swapchain sized to `window`'s current framebuffer, preferring `eB8G8R8A8Srgb`/`eSrgbNonlinear`
 	 * and `eMailbox` present mode (falling back to the first available format and `eFifo` respectively).
 	 */
-	static VulkanSwapChain
-	CreateSwapChain(const VulkanContext& context, GLFWwindow* window, uint32_t frames_in_flight);
+	static VulkanSwapChain CreateSwapChain(const VulkanContext& context, GLFWwindow* window, uint32_t frames_in_flight);
 
 	/**
 	 * Blocks (pumping window events) while `window`'s framebuffer has zero width or height (e.g.
@@ -138,6 +137,7 @@ public:
 		vk::Format				format,
 		vk::ImageTiling			tiling,
 		vk::ImageUsageFlags		usage,
+		vk::ImageAspectFlags	aspect,
 		vk::MemoryPropertyFlags properties);
 
 	/**
@@ -169,6 +169,16 @@ public:
 		uint32_t						   imageIndex,
 		const Ping::ImageLayoutTransition& layout_transition);
 
+	static void transitionImageLayout(
+		VulkanCommandBuffer&			   cmd_buffer,
+		VulkanImage&					   image,
+		const Ping::ImageLayoutTransition& layout_transition);
+
+	static void transitionImageLayout(
+		VulkanCommandBuffer&			   cmd_buffer,
+		vk::Image						   image,
+		const Ping::ImageLayoutTransition& layout_transition);
+
 	/**
 	 * Overloaded version for simple image transitions.
 	 */
@@ -182,7 +192,11 @@ public:
 	 * Begins dynamic rendering into `swapchain`'s image view at `imageIndex` (clearing to opaque black)
 	 * and sets the viewport/scissor to the swapchain's full extent.
 	 */
-	static void beginRendering(VulkanCommandBuffer& cmd_buffer, VulkanSwapChain& swapchain, uint32_t imageIndex);
+	static void beginRendering(
+		VulkanCommandBuffer& cmd_buffer,
+		VulkanSwapChain&	 swapchain,
+		VulkanImage&		 depth_buffer,
+		uint32_t			 imageIndex);
 
 	/**
 	 * @throws std::runtime_error if `context` has no queue of type `wanted_queue_type`.

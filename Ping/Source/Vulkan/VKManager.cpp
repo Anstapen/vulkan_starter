@@ -71,8 +71,7 @@ VulkanContext VKManager::CreateVulkanContext(
 		std::move(command_pools), std::move(debug_messenger));
 }
 
-VulkanSwapChain
-VKManager::CreateSwapChain(const VulkanContext& context, GLFWwindow* window, uint32_t frames_in_flight)
+VulkanSwapChain VKManager::CreateSwapChain(const VulkanContext& context, GLFWwindow* window, uint32_t frames_in_flight)
 {
 	auto surfaceCapabilities = context.phys_device.getSurfaceCapabilitiesKHR(*context.surface);
 	std::vector<vk::SurfaceFormatKHR> surfaceFormats = context.phys_device.getSurfaceFormatsKHR(*context.surface);
@@ -188,11 +187,11 @@ VulkanPipeline Backend::VKManager::CreatePipeline(
 
 	vk::PipelineInputAssemblyStateCreateInfo inputAssembly{.topology = vk::PrimitiveTopology::eTriangleList};
 	vk::Viewport							 viewport{0.0f,
-						  0.0f,
-						  static_cast<float>(swapchain.swapChainExtent.width),
-						  static_cast<float>(swapchain.swapChainExtent.height),
-						  0.0f,
-						  1.0f};
+													  0.0f,
+													  static_cast<float>(swapchain.swapChainExtent.width),
+													  static_cast<float>(swapchain.swapChainExtent.height),
+													  0.0f,
+													  1.0f};
 	vk::PipelineViewportStateCreateInfo		 viewportState{.viewportCount = 1, .scissorCount = 1};
 	vk::Rect2D								 scissor{vk::Offset2D{0, 0}, swapchain.swapChainExtent};
 
@@ -227,6 +226,13 @@ VulkanPipeline Backend::VKManager::CreatePipeline(
 		.attachmentCount = 1,
 		.pAttachments = &colorBlendAttachment};
 
+	vk::PipelineDepthStencilStateCreateInfo depthStencil{
+		.depthTestEnable = vk::True,
+		.depthWriteEnable = vk::True,
+		.depthCompareOp = vk::CompareOp::eLess,
+		.depthBoundsTestEnable = vk::False,
+		.stencilTestEnable = vk::False};
+
 	std::vector<vk::raii::DescriptorSetLayout> descriptorSetLayouts =
 		CreateDescriptorSetLayouts(context, specification.descriptorBindings);
 
@@ -252,11 +258,14 @@ VulkanPipeline Backend::VKManager::CreatePipeline(
 		 .pViewportState = &viewportState,
 		 .pRasterizationState = &rasterizer,
 		 .pMultisampleState = &multisampling,
+		 .pDepthStencilState = &depthStencil,
 		 .pColorBlendState = &colorBlending,
 		 .pDynamicState = &dynamicState,
 		 .layout = pipelineLayout,
 		 .renderPass = nullptr},
-		{.colorAttachmentCount = 1, .pColorAttachmentFormats = &swapchain.swapChainSurfaceFormat.format}};
+		{.colorAttachmentCount = 1,
+		 .pColorAttachmentFormats = &swapchain.swapChainSurfaceFormat.format,
+		 .depthAttachmentFormat = vk::Format::eD32Sfloat}};
 
 	auto graphicsPipeline =
 		vk::raii::Pipeline(context.device, nullptr, pipelineCreateInfoChain.get<vk::GraphicsPipelineCreateInfo>());
@@ -293,7 +302,7 @@ VulkanDescriptorPool Backend::VKManager::CreateUBODescriptorSets(
 	/* vkAllocateDescriptorSets wants one layout handle per set, even though they're all identical. */
 	std::vector<vk::DescriptorSetLayout> layouts(set_count, *pipeline.descriptorSetLayouts[set_index]);
 	vk::DescriptorSetAllocateInfo		 allocInfo{
-			   .descriptorPool = pool, .descriptorSetCount = set_count, .pSetLayouts = layouts.data()};
+		.descriptorPool = pool, .descriptorSetCount = set_count, .pSetLayouts = layouts.data()};
 
 	vk::raii::DescriptorSets rawSets(context.device, allocInfo);
 
@@ -351,7 +360,7 @@ VulkanDescriptorPool Backend::VKManager::CreateSamplerDescriptorSets(
 	/* vkAllocateDescriptorSets wants one layout handle per set, even though they're all identical. */
 	std::vector<vk::DescriptorSetLayout> layouts(set_count, *pipeline.descriptorSetLayouts[set_index]);
 	vk::DescriptorSetAllocateInfo		 allocInfo{
-			   .descriptorPool = pool, .descriptorSetCount = set_count, .pSetLayouts = layouts.data()};
+		.descriptorPool = pool, .descriptorSetCount = set_count, .pSetLayouts = layouts.data()};
 
 	vk::raii::DescriptorSets rawSets(context.device, allocInfo);
 
@@ -573,6 +582,7 @@ VulkanImage Backend::VKManager::CreateImage(
 	vk::Format				format,
 	vk::ImageTiling			tiling,
 	vk::ImageUsageFlags		usage,
+	vk::ImageAspectFlags	aspect,
 	vk::MemoryPropertyFlags properties)
 {
 	vk::ImageCreateInfo imageInfo{
@@ -600,11 +610,7 @@ VulkanImage Backend::VKManager::CreateImage(
 		.viewType = vk::ImageViewType::e2D,
 		.format = format,
 		.subresourceRange = {
-			.aspectMask = vk::ImageAspectFlagBits::eColor,
-			.baseMipLevel = 0,
-			.levelCount = 1,
-			.baseArrayLayer = 0,
-			.layerCount = 1}};
+			.aspectMask = aspect, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1}};
 	auto image_view = vk::raii::ImageView(context.device, viewInfo);
 
 	return VulkanImage{std::move(image), std::move(image_view), std::move(imageMemory), usage,
@@ -617,6 +623,22 @@ void Backend::VKManager::transitionImageLayout(
 	uint32_t						   imageIndex,
 	const Ping::ImageLayoutTransition& layout_transition)
 {
+	transitionImageLayout(cmd_buffer, swapchain.swapChainImages[imageIndex], layout_transition);
+}
+
+void Backend::VKManager::transitionImageLayout(
+	VulkanCommandBuffer&			   cmd_buffer,
+	VulkanImage&					   image,
+	const Ping::ImageLayoutTransition& layout_transition)
+{
+	transitionImageLayout(cmd_buffer, image.image, layout_transition);
+}
+
+void Backend::VKManager::transitionImageLayout(
+	VulkanCommandBuffer&			   cmd_buffer,
+	vk::Image						   image,
+	const Ping::ImageLayoutTransition& layout_transition)
+{
 	vk::ImageMemoryBarrier2 barrier = {
 		.srcStageMask = ToVulkan(layout_transition.srcStage),
 		.srcAccessMask = ToVulkan(layout_transition.srcAccessMask),
@@ -626,9 +648,9 @@ void Backend::VKManager::transitionImageLayout(
 		.newLayout = ToVulkan(layout_transition.newLayout),
 		.srcQueueFamilyIndex = vk::QueueFamilyIgnored,
 		.dstQueueFamilyIndex = vk::QueueFamilyIgnored,
-		.image = swapchain.swapChainImages[imageIndex],
+		.image = image,
 		.subresourceRange = {
-			.aspectMask = vk::ImageAspectFlagBits::eColor,
+			.aspectMask = ToVulkan(layout_transition.aspect),
 			.baseMipLevel = 0,
 			.levelCount = 1,
 			.baseArrayLayer = 0,
@@ -692,9 +714,11 @@ void Backend::VKManager::transitionImageLayout(
 void Backend::VKManager::beginRendering(
 	VulkanCommandBuffer& cmd_buffer,
 	VulkanSwapChain&	 swapchain,
+	VulkanImage&		 depth_buffer,
 	uint32_t			 imageIndex)
 {
 	vk::ClearValue				clearColor = vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f);
+	vk::ClearValue				clearDepth = vk::ClearDepthStencilValue(1.0f, 0);
 	vk::RenderingAttachmentInfo attachmentInfo = {
 		.imageView = swapchain.swapChainImageViews[imageIndex],
 		.imageLayout = vk::ImageLayout::eColorAttachmentOptimal,
@@ -702,11 +726,19 @@ void Backend::VKManager::beginRendering(
 		.storeOp = vk::AttachmentStoreOp::eStore,
 		.clearValue = clearColor};
 
+	vk::RenderingAttachmentInfo depthAttachmentInfo = {
+		.imageView = depth_buffer.imageView,
+		.imageLayout = vk::ImageLayout::eDepthAttachmentOptimal,
+		.loadOp = vk::AttachmentLoadOp::eClear,
+		.storeOp = vk::AttachmentStoreOp::eDontCare,
+		.clearValue = clearDepth};
+
 	vk::RenderingInfo renderingInfo = {
 		.renderArea = {.offset = {0, 0}, .extent = swapchain.swapChainExtent},
 		.layerCount = 1,
 		.colorAttachmentCount = 1,
-		.pColorAttachments = &attachmentInfo};
+		.pColorAttachments = &attachmentInfo,
+		.pDepthAttachment = &depthAttachmentInfo};
 
 	cmd_buffer.commandBuffer.beginRendering(renderingInfo);
 
@@ -1024,8 +1056,9 @@ vk::SurfaceFormatKHR Backend::VKManager::SelectSurfaceFormat(const std::vector<v
 
 vk::PresentModeKHR Backend::VKManager::SelectPresentMode(const std::vector<vk::PresentModeKHR>& availablePresentModes)
 {
-	assert(std::ranges::any_of(
-		availablePresentModes, [](auto presentMode) { return presentMode == vk::PresentModeKHR::eFifo; }));
+	assert(
+		std::ranges::any_of(
+			availablePresentModes, [](auto presentMode) { return presentMode == vk::PresentModeKHR::eFifo; }));
 	return std::ranges::any_of(
 			   availablePresentModes,
 			   [](const vk::PresentModeKHR value) { return vk::PresentModeKHR::eMailbox == value; })
@@ -1141,9 +1174,11 @@ Backend::VKManager::LoadVulkanImage(const VulkanContext& context, const std::str
 		return {};
 	}
 
-	VulkanImage image = std::move(VKManager::CreateImage(
-		context, texWidth, texHeight, vk::Format::eR8G8B8A8Srgb, vk::ImageTiling::eOptimal,
-		vk::ImageUsageFlagBits::eTransferDst | usage, vk::MemoryPropertyFlagBits::eDeviceLocal));
+	VulkanImage image = std::move(
+		VKManager::CreateImage(
+			context, texWidth, texHeight, vk::Format::eR8G8B8A8Srgb, vk::ImageTiling::eOptimal,
+			vk::ImageUsageFlagBits::eTransferDst | usage, vk::ImageAspectFlagBits::eColor,
+			vk::MemoryPropertyFlagBits::eDeviceLocal));
 
 	/* Image has now device-local memory assigned to it, but it does not contain the image data yet */
 
@@ -1212,16 +1247,16 @@ VulkanSampler Backend::VKManager::CreateSampler(const VulkanContext& context, Pi
 {
 	vk::PhysicalDeviceProperties properties = context.phys_device.getProperties();
 	vk::SamplerCreateInfo		 samplerInfo{
-			   .magFilter = ToVulkan(sampler_spec.filterMode),
-			   .minFilter = ToVulkan(sampler_spec.filterMode),
-			   .mipmapMode = ToVulkan(sampler_spec.mipmapMode),
-			   .addressModeU = ToVulkan(sampler_spec.addressMode),
-			   .addressModeV = ToVulkan(sampler_spec.addressMode),
-			   .addressModeW = ToVulkan(sampler_spec.addressMode),
-			   .anisotropyEnable = vk::True,
-			   .maxAnisotropy = 1.0f,
-			   .compareEnable = vk::False,
-			   .compareOp = vk::CompareOp::eAlways};
+		.magFilter = ToVulkan(sampler_spec.filterMode),
+		.minFilter = ToVulkan(sampler_spec.filterMode),
+		.mipmapMode = ToVulkan(sampler_spec.mipmapMode),
+		.addressModeU = ToVulkan(sampler_spec.addressMode),
+		.addressModeV = ToVulkan(sampler_spec.addressMode),
+		.addressModeW = ToVulkan(sampler_spec.addressMode),
+		.anisotropyEnable = vk::True,
+		.maxAnisotropy = 1.0f,
+		.compareEnable = vk::False,
+		.compareOp = vk::CompareOp::eAlways};
 
 	/* For now, we just use the maximum available anisotrophy. */
 	if (sampler_spec.anisotropyEnable)
@@ -1329,6 +1364,8 @@ VulkanGui Backend::VKManager::CreateGui(
 	vk::PipelineMultisampleStateCreateInfo multisampling{
 		.rasterizationSamples = vk::SampleCountFlagBits::e1, .sampleShadingEnable = vk::False};
 
+	vk::PipelineDepthStencilStateCreateInfo depthStencil{.depthTestEnable = vk::False, .depthWriteEnable = vk::False};
+
 	vk::PipelineColorBlendAttachmentState colorBlendAttachment{
 		.blendEnable = vk::True,
 		.srcColorBlendFactor = vk::BlendFactor::eSrcAlpha,
@@ -1351,11 +1388,14 @@ VulkanGui Backend::VKManager::CreateGui(
 		 .pViewportState = &viewportState,
 		 .pRasterizationState = &rasterizer,
 		 .pMultisampleState = &multisampling,
+		 .pDepthStencilState = &depthStencil,
 		 .pColorBlendState = &colorBlending,
 		 .pDynamicState = &dynamicState,
 		 .layout = pipelineLayout,
 		 .renderPass = nullptr},
-		{.colorAttachmentCount = 1, .pColorAttachmentFormats = &swapchain.swapChainSurfaceFormat.format}};
+		{.colorAttachmentCount = 1,
+		 .pColorAttachmentFormats = &swapchain.swapChainSurfaceFormat.format,
+		 .depthAttachmentFormat = vk::Format::eD32Sfloat}};
 
 	vk::raii::Pipeline pipeline(context.device, nullptr, pipelineCreateInfoChain.get<vk::GraphicsPipelineCreateInfo>());
 
@@ -1366,7 +1406,7 @@ VulkanGui Backend::VKManager::CreateGui(
 	VulkanImage fontImage = VKManager::CreateImage(
 		context, static_cast<uint32_t>(fontWidth), static_cast<uint32_t>(fontHeight), vk::Format::eR8G8B8A8Unorm,
 		vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
-		vk::MemoryPropertyFlagBits::eDeviceLocal);
+		vk::ImageAspectFlagBits::eColor, vk::MemoryPropertyFlagBits::eDeviceLocal);
 	VKManager::UploadImageData(
 		context, fontImage, fontPixels, static_cast<uint32_t>(fontWidth), static_cast<uint32_t>(fontHeight), 4);
 
@@ -1397,12 +1437,14 @@ VulkanGui Backend::VKManager::CreateGui(
 	indexBuffers.reserve(frames_in_flight);
 	for (uint32_t i = 0; i < frames_in_flight; i++)
 	{
-		vertexBuffers.push_back(VKManager::CreateBuffer(
-			context, sizeof(ImDrawVert), vk::BufferUsageFlagBits::eVertexBuffer,
-			vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent));
-		indexBuffers.push_back(VKManager::CreateBuffer(
-			context, sizeof(ImDrawIdx), vk::BufferUsageFlagBits::eIndexBuffer,
-			vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent));
+		vertexBuffers.push_back(
+			VKManager::CreateBuffer(
+				context, sizeof(ImDrawVert), vk::BufferUsageFlagBits::eVertexBuffer,
+				vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent));
+		indexBuffers.push_back(
+			VKManager::CreateBuffer(
+				context, sizeof(ImDrawIdx), vk::BufferUsageFlagBits::eIndexBuffer,
+				vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent));
 	}
 
 	return VulkanGui(
@@ -1465,6 +1507,9 @@ void Backend::VKManager::RenderGui(
 	ImVec2 clip_off = draw_data->DisplayPos;
 	ImVec2 clip_scale = draw_data->FramebufferScale;
 
+	int fb_width = static_cast<int>(draw_data->DisplaySize.x * draw_data->FramebufferScale.x);
+	int fb_height = static_cast<int>(draw_data->DisplaySize.y * draw_data->FramebufferScale.y);
+
 	int32_t global_vtx_offset = 0;
 	int32_t global_idx_offset = 0;
 	for (int n = 0; n < draw_data->CmdListsCount; n++)
@@ -1476,6 +1521,26 @@ void Backend::VKManager::RenderGui(
 
 			ImVec2 clip_min((cmd.ClipRect.x - clip_off.x) * clip_scale.x, (cmd.ClipRect.y - clip_off.y) * clip_scale.y);
 			ImVec2 clip_max((cmd.ClipRect.z - clip_off.x) * clip_scale.x, (cmd.ClipRect.w - clip_off.y) * clip_scale.y);
+
+			/* Clamp to the framebuffer: vkCmdSetScissor() rejects negative offsets or an extent that
+			 * overruns the framebuffer, but a clip rect can extend past either edge (e.g. a window/popup
+			 * partially off-screen). */
+			if (clip_min.x < 0.0f)
+			{
+				clip_min.x = 0.0f;
+			}
+			if (clip_min.y < 0.0f)
+			{
+				clip_min.y = 0.0f;
+			}
+			if (clip_max.x > static_cast<float>(fb_width))
+			{
+				clip_max.x = static_cast<float>(fb_width);
+			}
+			if (clip_max.y > static_cast<float>(fb_height))
+			{
+				clip_max.y = static_cast<float>(fb_height);
+			}
 
 			if (clip_max.x <= clip_min.x || clip_max.y <= clip_min.y)
 			{

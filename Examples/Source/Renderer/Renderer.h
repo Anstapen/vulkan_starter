@@ -1,9 +1,13 @@
 #pragma once
 
 #include <cstdint>
+#include <filesystem>
 #include <optional>
+#include <string>
 
 #include "Application/World.h"
+#include "ECS/Components/Movement.h"
+#include "ECS/Components/Transform.h"
 #include "Logger/Logger.h"
 #include "Ping/Buffer.h"
 #include "Ping/DescriptorSets.h"
@@ -12,8 +16,11 @@
 #include "Ping/Image.h"
 #include "Ping/Sampler.h"
 #include "Window/Window.h"
+#include "Ping/Error.h"
 
-#include "glm/glm.hpp"
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 namespace Mupfel
 {
@@ -80,6 +87,22 @@ private:
 	/** Draws the "Line Spawner" ImGui window and handles its Add/Clear buttons. */
 	void DrawLineSpawnerUI(World& world);
 
+	/** Draws the "Entity Creator" ImGui window and handles its Create Entity button. */
+	void DrawEntityCreatorUI(World& world, const Ping::Device& device);
+
+	/** Draws the texture file-browser popup opened from `DrawEntityCreatorUI`, loading the picked file via `LoadTexture`. */
+	void DrawTextureFileBrowserPopup(const Ping::Device& device);
+
+	/**
+	 * Returns the index into `images`/`imagePaths` for `path`, loading it (and rebuilding
+	 * `samplerDescriptorSets`) if it isn't already loaded.
+	 *
+	 * @return `std::nullopt` if `path` fails to load or the texture array is already at `max_textures` capacity.
+	 * @note Calls `device.WaitForCommands()` before replacing `samplerDescriptorSets`, since its bindings are
+	 * only ever written at creation time and the old set must not still be in flight when it's destroyed.
+	 */
+	std::optional<uint32_t> LoadTexture(const Ping::Device& device, const std::string& path);
+
 private:
 	/** Number of frames pipelined in parallel. */
 	static constexpr uint32_t frames_in_flight = 2;
@@ -108,8 +131,11 @@ private:
 	std::optional<Ping::DescriptorSets> descriptorSets;
 
 	std::vector<Ping::Image>			images;
+	std::optional<Ping::Image>			depthBuffer;
 	std::vector<Ping::Sampler>			samplers;
 	std::optional<Ping::DescriptorSets> samplerDescriptorSets;
+	/** Source path for each entry in `images`, same indices; used by the texture picker and to de-dupe reloads. */
+	std::vector<std::string> imagePaths;
 
 	std::optional<Ping::DescriptorSets> transformDescriptorSets;
 
@@ -154,6 +180,16 @@ private:
 	std::optional<Ping::DescriptorSets> lineInstanceDescriptorSets;
 
 	uint32_t drawable_lines = 0;
+
+	/** "Entity Creator" ImGui window state; see DrawEntityCreatorUI. */
+	bool	  creatorAddTransform = false;
+	Transform creatorTransform{};
+	bool	  creatorAddMovement = false;
+	Movement  creatorMovement{};
+	bool	  creatorAddTexture = false;
+	uint32_t  selectedTextureIndex = 0;
+	std::string			   selectedTexturePath;
+	std::filesystem::path currentBrowseDir = "Images";
 };
 
 } // namespace Mupfel

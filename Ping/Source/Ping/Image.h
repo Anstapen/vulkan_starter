@@ -11,10 +11,12 @@ class VulkanImage;
 namespace Ping
 {
 class Device;
+class CommandBuffer;
 
 class Image
 {
 	friend class Device;
+	friend class CommandBuffer;
 
 public:
 	Image(Backend::VulkanImage&& in_image) noexcept;

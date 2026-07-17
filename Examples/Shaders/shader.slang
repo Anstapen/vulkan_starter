@@ -13,7 +13,7 @@ ConstantBuffer<UniformBuffer> ubo;
 
 struct TextureInstance {
     float3 pos;
-    float  _pad0;
+    float  tilt;
     float2 scale;
     float  rotation;
     uint   textureIndex;
@@ -37,12 +37,26 @@ VSOutput vertMain(VSInput input) {
     float c = cos(t.rotation);
     float s = sin(t.rotation);
 
-    float2 scaled = input.inPos * t.scale;
-    float2 rotated = float2(
-        scaled.x * c - scaled.y * s,
-        scaled.x * s + scaled.y * c);
+    float3 localPos = float3(input.inPos, 0.0);
 
-    float4 worldPos = float4(rotated + t.pos.xy, t.pos.z, 1.0);
+    // yaw: existing in-plane rotation, now expressed as a 3x3 around Z
+    float cy = cos(t.rotation), sy = sin(t.rotation);
+    float3x3 yawMat = float3x3(
+        cy, -sy, 0.0,
+        sy,  cy, 0.0,
+        0.0, 0.0, 1.0);
+
+    // tilt: new rotation around X, tips the quad up out of the XY plane
+    float ct = cos(t.tilt), st = sin(t.tilt);
+    float3x3 tiltMat = float3x3(
+        1.0, 0.0,  0.0,
+     0.0,  ct, -st,
+        0.0,  st,  ct);
+
+    float3 scaled  = localPos * float3(t.scale, 1.0);
+    float3 rotated = mul(yawMat, mul(tiltMat, scaled));
+
+    float4 worldPos = float4(rotated + t.pos, 1.0);
 
     output.pos = mul(ubo.proj, mul(ubo.view,  worldPos));
     output.fragTexCoord = input.inTexCoord;
