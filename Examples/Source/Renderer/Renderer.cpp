@@ -609,13 +609,13 @@ void Mupfel::Renderer::UpdateCamera(const Window& window, float delta_time)
 	lastCursorX = cursorX;
 	lastCursorY = cursorY;
 
-	constexpr float zoomSensitivity = 10.0f;
+	constexpr float zoomSensitivity = 2.0f;
 	cameraDistance -= static_cast<float>(window.ConsumeScrollDeltaY()) * zoomSensitivity;
 	cameraDistance = glm::clamp(cameraDistance, 1.0f, 250.0f);
 
 	if (!ImGui::GetIO().WantCaptureKeyboard)
 	{
-		constexpr float panSpeed = 30.0f;
+		constexpr float panSpeed = 10.0f;
 		glm::vec3		forward(glm::cos(cameraYaw), glm::sin(cameraYaw), 0.0f);
 		glm::vec3		right(-forward.y, forward.x, 0.0f);
 

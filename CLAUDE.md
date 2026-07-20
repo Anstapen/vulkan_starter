@@ -61,6 +61,8 @@ As this software project is a Rendering Hardware Interface (RHI), to be used by 
 
 4. The usage of the C++ classes and function should be simple
 
+5. If applicable, use modern C++ features (this project is compiled using C++23)
+
 ## Coding Style & Naming Conventions
 
 Formatting (indentation, brace placement, pointer/reference alignment) is enforced by the root `.clang-format` — see that file rather than this doc for the specifics.
@@ -91,6 +93,7 @@ Conventions:
 - Classes, methods, and free functions use a `/** */` block. The first sentence becomes the brief
   description (`JAVADOC_AUTOBRIEF`); add a blank comment line before any further detail (lifetime/
   ownership notes, threading constraints, preconditions):
+  
   ```cpp
   /**
    * Creates a swapchain for the given window.
@@ -103,6 +106,7 @@ Conventions:
    */
   SwapChain CreateSwapChain(GLFWwindow* in_window, uint32_t frames_in_flight) const;
   ```
+  
   A single-line `/** Brief description. */` is fine for trivial methods with no parameters worth
   documenting.
 - `@param` names match the actual parameter name, including the `in_` prefix where used.
