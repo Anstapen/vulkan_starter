@@ -12,11 +12,11 @@
 #include "Ping/Buffer.h"
 #include "Ping/DescriptorSets.h"
 #include "Ping/Device.h"
+#include "Ping/Error.h"
 #include "Ping/Gui.h"
 #include "Ping/Image.h"
 #include "Ping/Sampler.h"
 #include "Window/Window.h"
-#include "Ping/Error.h"
 
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
@@ -29,6 +29,7 @@ struct UniformBufferObject
 {
 	glm::mat4 view;
 	glm::mat4 proj;
+	glm::vec4 cameraRight;
 };
 
 /**
@@ -77,12 +78,12 @@ private:
 	void updateMVP(Ping::Buffer& uniform_buffer);
 
 	/**
-	 * Updates the orbit camera from mouse and keyboard input: right-drag to rotate (yaw/pitch),
-	 * scroll to zoom (distance), WASD to pan `cameraTarget` across the X/Y plane at a speed
-	 * independent of framerate (scaled by `delta_time`). Skips rotation input while ImGui wants the
-	 * mouse (e.g. dragging an ImGui window).
+	 * Drives the fixed-angle follow camera: scroll to zoom (distance) and WASD to move the player
+	 * entity across the X/Y plane along the camera's screen axes, at a speed independent of
+	 * framerate (scaled by `delta_time`). `cameraTarget` then follows the player. Skips keyboard
+	 * input while ImGui wants the keyboard, and does nothing if `world.player` is unset.
 	 */
-	void UpdateCamera(const Window& window, float delta_time);
+	void UpdateCamera(World& world, const Window& window, float delta_time);
 
 	/** Draws the "Line Spawner" ImGui window and handles its Add/Clear buttons. */
 	void DrawLineSpawnerUI(World& world);
@@ -90,7 +91,8 @@ private:
 	/** Draws the "Entity Creator" ImGui window and handles its Create Entity button. */
 	void DrawEntityCreatorUI(World& world, const Ping::Device& device);
 
-	/** Draws the texture file-browser popup opened from `DrawEntityCreatorUI`, loading the picked file via `LoadTexture`. */
+	/** Draws the texture file-browser popup opened from `DrawEntityCreatorUI`, loading the picked file via
+	 * `LoadTexture`. */
 	void DrawTextureFileBrowserPopup(const Ping::Device& device);
 
 	/**
@@ -147,17 +149,13 @@ private:
 
 	uint32_t drawable_entities = 0;
 
-	/** Orbit camera state, in spherical coordinates around `cameraTarget`; initial values reproduce
-	 * the previous fixed eye position of (2, 2, 2) relative to the origin. */
-	float cameraYaw = glm::radians(45.0f);
-	float cameraPitch = glm::radians(35.264f);
-	float cameraDistance = 3.4641f;
-	/** Point the camera orbits around; panned across the X/Y plane by WASD in `UpdateCamera`. */
+	/** Fixed camera angles for the 2.5D "Stardew"-style view; only distance and target change at runtime. */
+	static constexpr float cameraYaw = glm::radians(-90.0f);
+	static constexpr float cameraPitch = glm::radians(45.0f);
+	/** Distance from `cameraTarget` to the eye; driven by scroll-to-zoom in `UpdateCamera`. */
+	float cameraDistance = 25.0f;
+	/** Point the camera looks at; follows the player entity each frame in `UpdateCamera`. */
 	glm::vec3 cameraTarget = glm::vec3(0.0f);
-	/** Whether the right mouse button was held during the previous frame's `UpdateCamera` call. */
-	bool cameraDragging = false;
-	/** Cursor position recorded during the previous frame's `UpdateCamera` call. */
-	double lastCursorX = 0.0, lastCursorY = 0.0;
 
 	/** "Line Spawner" ImGui window state; see DrawLineSpawnerUI. */
 	glm::vec2 lineSpawnStart = glm::vec2(0.0f, 0.0f);
@@ -182,13 +180,13 @@ private:
 	uint32_t drawable_lines = 0;
 
 	/** "Entity Creator" ImGui window state; see DrawEntityCreatorUI. */
-	bool	  creatorAddTransform = false;
-	Transform creatorTransform{};
-	bool	  creatorAddMovement = false;
-	Movement  creatorMovement{};
-	bool	  creatorAddTexture = false;
-	uint32_t  selectedTextureIndex = 0;
-	std::string			   selectedTexturePath;
+	bool				  creatorAddTransform = false;
+	Transform			  creatorTransform{};
+	bool				  creatorAddMovement = false;
+	Movement			  creatorMovement{};
+	bool				  creatorAddTexture = false;
+	uint32_t			  selectedTextureIndex = 0;
+	std::string			  selectedTexturePath;
 	std::filesystem::path currentBrowseDir = "Images";
 };
 

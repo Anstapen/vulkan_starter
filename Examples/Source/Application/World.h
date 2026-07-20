@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <random>
 #include <vector>
 
@@ -26,6 +27,12 @@ public:
 	 */
 	void SpawnRandomEntities(uint32_t count, float min_pos, float max_pos, float max_velocity);
 
+	/**
+	 * Builds the demo scene: a large grass-tiled ground quad, a player billboard (stored in
+	 * `player`), and a ring of billboard props (some floating above the plane).
+	 */
+	void SpawnScene();
+
 public:
 	/** Double-buffered event queues shared with `registry`. */
 	EventSystem event_system;
@@ -33,6 +40,8 @@ public:
 	Registry registry;
 	/** Entities created in this world (see `Application::Init`). */
 	std::vector<Entity> entities;
+	/** The entity the camera follows; set by `SpawnScene`. Empty until then. */
+	std::optional<Entity> player;
 
 private:
 	/** Shared RNG for `SpawnRandomEntities`. */

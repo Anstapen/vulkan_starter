@@ -69,6 +69,10 @@ struct TextureInstance
 	float	 scale_y = 1.0f;
 	float	 rotation = 0.0f;
 	uint32_t index = 1;
+	uint32_t isBillboard = 1;
+	float	 uvScale = 1.0f;
+	float	 _pad0 = 0.0f;
+	float	 _pad1 = 0.0f;
 };
 
 struct LineInstance
@@ -358,6 +362,8 @@ void Mupfel::Renderer::SyncRenderableObjects(World& world, const Ping::Device& d
 		buffer[buffer_index].tilt = transform.tilt;
 		buffer[buffer_index].scale_x = transform.scale_x;
 		buffer[buffer_index].scale_y = transform.scale_y;
+		buffer[buffer_index].isBillboard = transform.billboard ? 1u : 0u;
+		buffer[buffer_index].uvScale = transform.uvScale;
 		buffer_index++;
 	}
 
@@ -589,45 +595,48 @@ void Mupfel::Renderer::updateMVP(Ping::Buffer& uniform_buffer)
 	ubo.proj =
 		glm::perspective(glm::radians(45.0f), static_cast<float>(width) / static_cast<float>(height), 0.1f, 500.0f);
 	ubo.proj[1][1] *= -1;
+	ubo.cameraRight = glm::vec4(-glm::sin(cameraYaw), glm::cos(cameraYaw), 0.0f, 0.0f);
 	std::memcpy(uniform_buffer.GetMappedPtr(), &ubo, sizeof(UniformBufferObject));
 }
 
-void Mupfel::Renderer::UpdateCamera(const Window& window, float delta_time)
+void Mupfel::Renderer::UpdateCamera(World& world, const Window& window, float delta_time)
 {
-	double cursorX, cursorY;
-	window.GetCursorPos(cursorX, cursorY);
-	bool rightDown = window.GetMouseButtonDown(GLFW_MOUSE_BUTTON_RIGHT);
-
-	if (rightDown && cameraDragging && !ImGui::GetIO().WantCaptureMouse)
-	{
-		constexpr float rotateSensitivity = 0.005f;
-		cameraYaw -= static_cast<float>(cursorX - lastCursorX) * rotateSensitivity;
-		cameraPitch += static_cast<float>(cursorY - lastCursorY) * rotateSensitivity;
-		cameraPitch = glm::clamp(cameraPitch, glm::radians(-89.0f), glm::radians(89.0f));
-	}
-	cameraDragging = rightDown;
-	lastCursorX = cursorX;
-	lastCursorY = cursorY;
-
 	constexpr float zoomSensitivity = 2.0f;
 	cameraDistance -= static_cast<float>(window.ConsumeScrollDeltaY()) * zoomSensitivity;
-	cameraDistance = glm::clamp(cameraDistance, 1.0f, 250.0f);
+	cameraDistance = glm::clamp(cameraDistance, 5.0f, 60.0f);
+
+	if (!world.player.has_value() || !world.registry.HasComponent<Transform>(world.player.value()))
+	{
+		return;
+	}
+
+	Transform& player = world.registry.GetComponent<Transform>(world.player.value());
 
 	if (!ImGui::GetIO().WantCaptureKeyboard)
 	{
-		constexpr float panSpeed = 10.0f;
-		glm::vec3		forward(glm::cos(cameraYaw), glm::sin(cameraYaw), 0.0f);
-		glm::vec3		right(-forward.y, forward.x, 0.0f);
+		const glm::vec3 right(-glm::sin(cameraYaw), glm::cos(cameraYaw), 0.0f);
+		const glm::vec3 forward(-glm::cos(cameraYaw), -glm::sin(cameraYaw), 0.0f);
+		glm::vec3		move(0.0f);
 
-		if (window.GetKeyDown(GLFW_KEY_W))
-			cameraTarget -= forward * panSpeed * delta_time;
-		if (window.GetKeyDown(GLFW_KEY_S))
-			cameraTarget += forward * panSpeed * delta_time;
 		if (window.GetKeyDown(GLFW_KEY_D))
-			cameraTarget += right * panSpeed * delta_time;
+			move += right;
 		if (window.GetKeyDown(GLFW_KEY_A))
-			cameraTarget -= right * panSpeed * delta_time;
+			move -= right;
+		if (window.GetKeyDown(GLFW_KEY_W))
+			move += forward;
+		if (window.GetKeyDown(GLFW_KEY_S))
+			move -= forward;
+
+		if (glm::length(move) > 0.0f)
+		{
+			constexpr float playerSpeed = 30.0f;
+			move = glm::normalize(move) * playerSpeed * delta_time;
+			player.pos_x += move.x;
+			player.pos_y += move.y;
+		}
 	}
+
+	cameraTarget = glm::vec3(player.pos_x, player.pos_y, player.pos_z);
 }
 
 void Mupfel::Renderer::RenderNextFrame(World& world, const Ping::Device& device, const Window& window, float delta_time)
@@ -637,7 +646,7 @@ void Mupfel::Renderer::RenderNextFrame(World& world, const Ping::Device& device,
 
 	current_command_buffer.WaitForFences(device);
 
-	UpdateCamera(window, delta_time);
+	UpdateCamera(world, window, delta_time);
 	updateMVP(uniformBuffers[frameIndex]);
 
 	SyncRenderableObjects(world, device, frameIndex);

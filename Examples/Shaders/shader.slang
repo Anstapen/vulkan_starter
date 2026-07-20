@@ -7,6 +7,7 @@ struct VSInput {
 struct UniformBuffer {
     float4x4 view;
     float4x4 proj;
+    float4   cameraRight;
 };
 [[vk::binding(0, 0)]]
 ConstantBuffer<UniformBuffer> ubo;
@@ -17,6 +18,9 @@ struct TextureInstance {
     float2 scale;
     float  rotation;
     uint   textureIndex;
+    uint   isBillboard;
+    float  uvScale;
+    float2 _pad;
 };
 [[vk::binding(0, 2)]]
 StructuredBuffer<TextureInstance> texture_instances;
@@ -34,32 +38,34 @@ VSOutput vertMain(VSInput input) {
 
     TextureInstance t = texture_instances[input.instanceIndex];
 
-    float c = cos(t.rotation);
-    float s = sin(t.rotation);
+    float3 worldPos;
+    float2 uv = input.inTexCoord;
 
-    float3 localPos = float3(input.inPos, 0.0);
+    if (t.isBillboard != 0)
+    {
+        // Upright (cylindrical) billboard: width runs along the camera's screen-right axis,
+        // height runs straight up (world +Z), with the sprite's base planted at t.pos. The height is
+        // NOT flipped here (local +y -> world +z) so the CCW winding keeps the front face toward the
+        // camera and back-face culling doesn't hide it; the texture is flipped in uv instead to keep
+        // image-up = world-up.
+        float3 right = ubo.cameraRight.xyz;
+        float3 up    = float3(0.0, 0.0, 1.0);
 
-    // yaw: existing in-plane rotation, now expressed as a 3x3 around Z
-    float cy = cos(t.rotation), sy = sin(t.rotation);
-    float3x3 yawMat = float3x3(
-        cy, -sy, 0.0,
-        sy,  cy, 0.0,
-        0.0, 0.0, 1.0);
+        float halfWidth = input.inPos.x * t.scale.x;         // centered on x, in [-0.5,0.5]*scale
+        float height    = (input.inPos.y + 0.5) * t.scale.y; // 0 at base .. scale.y at top
 
-    // tilt: new rotation around X, tips the quad up out of the XY plane
-    float ct = cos(t.tilt), st = sin(t.tilt);
-    float3x3 tiltMat = float3x3(
-        1.0, 0.0,  0.0,
-     0.0,  ct, -st,
-        0.0,  st,  ct);
+        worldPos = t.pos + halfWidth * right + height * up;
+        uv       = float2(input.inTexCoord.x, 1.0 - input.inTexCoord.y);
+    }
+    else
+    {
+        // Flat quad lying in the world x/y plane (the ground); tile the texture.
+        worldPos = t.pos + float3(input.inPos * t.scale, 0.0);
+        uv       = input.inTexCoord * t.uvScale;
+    }
 
-    float3 scaled  = localPos * float3(t.scale, 1.0);
-    float3 rotated = mul(yawMat, mul(tiltMat, scaled));
-
-    float4 worldPos = float4(rotated + t.pos, 1.0);
-
-    output.pos = mul(ubo.proj, mul(ubo.view,  worldPos));
-    output.fragTexCoord = input.inTexCoord;
+    output.pos          = mul(ubo.proj, mul(ubo.view, float4(worldPos, 1.0)));
+    output.fragTexCoord = uv;
     output.textureIndex = t.textureIndex;
     return output;
 }

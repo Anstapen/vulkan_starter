@@ -29,7 +29,6 @@ void Mupfel::Application::Run()
 	MainLoop();
 }
 
-
 void Mupfel::Application::Init()
 {
 	/* Create a Logger for the Application */
@@ -45,6 +44,8 @@ void Mupfel::Application::Init()
 	window = Window();
 	device = Ping::Device(Ping::DeviceSpecification(), window.value().GetGLFWHandle());
 	renderer.Init(device.value(), window.value());
+
+	world.SpawnScene();
 }
 
 void Mupfel::Application::MainLoop()
