@@ -2,6 +2,7 @@
 
 #include <cmath>
 
+#include "ECS/Components/Light.h"
 #include "ECS/Components/Movement.h"
 #include "ECS/Components/Texture.h"
 #include "ECS/Components/Transform.h"
@@ -28,7 +29,7 @@ void Mupfel::World::SpawnRandomEntities(uint32_t count, float min_pos, float max
 		registry.AddComponent<Transform>(e, t);
 
 		Texture tex;
-		tex.index = texture_dist(rng);
+		tex.index = static_cast<uint32_t>(texture_dist(rng));
 		registry.AddComponent<Texture>(e, tex);
 
 		Movement m;
@@ -75,7 +76,37 @@ void Mupfel::World::SpawnScene()
 		t.pos_x = std::cos(i * 0.523f) * 15.0f;
 		t.pos_y = std::sin(i * 0.523f) * 15.0f;
 		t.pos_z = (i % 3 == 0) ? 4.0f : 0.0f;
+
+		if (i == 3)
+		{
+			Light l;
+			l.ambientStrength = 0.1;
+			l.r = 1.0f;
+			l.g = 1.0f;
+			l.b = 1.0f;
+			registry.AddComponent<Light>(e, l);
+		}
+
 		registry.AddComponent<Transform>(e, t);
 		registry.AddComponent<Texture>(e, Texture{1u + static_cast<uint32_t>(i % 4)});
+	}
+}
+
+void Mupfel::World::UpdateLights(float delta_time)
+{
+	// Orbit the light(s) around the world origin on the x/y plane; radius matches the prop ring.
+	constexpr float orbitRadius = 15.0f;
+	constexpr float orbitSpeed = 1.0f; // radians per second
+	constexpr float orbitHeight = 4.0f;
+
+	lightOrbitAngle += orbitSpeed * delta_time;
+
+	for (auto [e, transform, light] : registry.view<Transform, Light>())
+	{
+		(void)e;
+		(void)light;
+		transform.pos_x = std::cos(lightOrbitAngle) * orbitRadius;
+		transform.pos_y = std::sin(lightOrbitAngle) * orbitRadius;
+		transform.pos_z = orbitHeight;
 	}
 }

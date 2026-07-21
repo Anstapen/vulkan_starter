@@ -30,6 +30,7 @@ struct UniformBufferObject
 	glm::mat4 view;
 	glm::mat4 proj;
 	glm::vec4 cameraRight;
+	glm::vec4 cameraPos;
 };
 
 /**
@@ -60,6 +61,8 @@ private:
 	/** Copies every `Transform` in `world` into `vertex_buffers[frame_index]`'s mapped memory and flushes it. */
 	void SyncRenderableObjects(World& world, const Ping::Device& device, uint32_t frame_index);
 
+	void SyncLights(World& world, const Ping::Device& device, uint32_t frame_index);
+
 	/**
 	 * Grows `transformBuffers` (and re-creates `transformDescriptorSets` to match) if
 	 * `required_capacity` exceeds the buffers' current capacity, doubling until it fits.
@@ -68,6 +71,8 @@ private:
 	 * since the buffers are re-synced from scratch each frame and don't need their old contents preserved.
 	 */
 	void EnsureTransformCapacity(const Ping::Device& device, uint32_t required_capacity);
+
+	void EnsureLightCapacity(const Ping::Device& device, uint32_t required_capacity);
 
 	void EnsureLineInstanceCapacity(const Ping::Device& device, uint32_t required_capacity);
 	void SyncRenderableLines(World& world, const Ping::Device& device, uint32_t frame_index);
@@ -90,6 +95,9 @@ private:
 
 	/** Draws the "Entity Creator" ImGui window and handles its Create Entity button. */
 	void DrawEntityCreatorUI(World& world, const Ping::Device& device);
+
+	/** Draws the "Camera" ImGui window with sliders for the follow camera's yaw, pitch, and distance. */
+	void DrawCameraControlsUI();
 
 	/** Draws the texture file-browser popup opened from `DrawEntityCreatorUI`, loading the picked file via
 	 * `LoadTexture`. */
@@ -127,8 +135,13 @@ private:
 	std::vector<Ping::Buffer> uniformBuffers;
 	/** One storage buffer per frame in flight for the transform data */
 	std::vector<Ping::Buffer> textureInstanceBuffers;
+	std::vector<Ping::Buffer> lightInstanceBuffers;
+	/** One uniform buffer per frame in flight */
+	std::vector<Ping::Buffer> lightParamBuffers;
 	/** Entity capacity each buffer in `transformBuffers` currently has room for; grown by `EnsureTransformCapacity`. */
 	uint32_t transformCapacity = 0;
+
+	uint32_t lightCapacity = 0;
 	/** Descriptor sets */
 	std::optional<Ping::DescriptorSets> descriptorSets;
 
@@ -140,18 +153,22 @@ private:
 	std::vector<std::string> imagePaths;
 
 	std::optional<Ping::DescriptorSets> transformDescriptorSets;
+	std::optional<Ping::DescriptorSets> lightDescriptorSets;
+	std::optional<Ping::DescriptorSets> lightParamDescriptorSets;
 
 	std::optional<Ping::Gui> gui;
 
 	static constexpr uint32_t uboSetIndex = 0;
 	static constexpr uint32_t samplerSetIndex = 1;
 	static constexpr uint32_t transformSetIndex = 2;
+	static constexpr uint32_t lightSetIndex = 3;
+	static constexpr uint32_t lightParamSetIndex = 4;
 
 	uint32_t drawable_entities = 0;
 
-	/** Fixed camera angles for the 2.5D "Stardew"-style view; only distance and target change at runtime. */
-	static constexpr float cameraYaw = glm::radians(-90.0f);
-	static constexpr float cameraPitch = glm::radians(45.0f);
+	/** Camera orientation for the 2.5D "Stardew"-style view; adjustable at runtime via `DrawCameraControlsUI`. */
+	float cameraYaw = glm::radians(-90.0f);
+	float cameraPitch = glm::radians(45.0f);
 	/** Distance from `cameraTarget` to the eye; driven by scroll-to-zoom in `UpdateCamera`. */
 	float cameraDistance = 25.0f;
 	/** Point the camera looks at; follows the player entity each frame in `UpdateCamera`. */

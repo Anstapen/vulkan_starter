@@ -33,6 +33,16 @@ public:
 	 */
 	void SpawnScene();
 
+	/**
+	 * Advances every entity that has both a `Light` and a `Transform` around a horizontal circle
+	 * on the x/y plane, framerate-independently via `delta_time`.
+	 *
+	 * All light entities share one orbit angle, so with more than one light they move in lockstep.
+	 *
+	 * @param delta_time Seconds elapsed since the previous frame.
+	 */
+	void UpdateLights(float delta_time);
+
 public:
 	/** Double-buffered event queues shared with `registry`. */
 	EventSystem event_system;
@@ -46,5 +56,7 @@ public:
 private:
 	/** Shared RNG for `SpawnRandomEntities`. */
 	std::mt19937 rng{std::random_device{}()};
+	/** Accumulated orbit angle in radians for `UpdateLights`. */
+	float lightOrbitAngle = 0.0f;
 };
 } // namespace Mupfel

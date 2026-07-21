@@ -1,6 +1,7 @@
 #include "Renderer.h"
 #include "Ping/Types.h"
 
+#include "ECS/Components/Light.h"
 #include "ECS/Components/RenderedLine.h"
 #include "ECS/Components/Texture.h"
 #include "ECS/Components/Transform.h"
@@ -71,8 +72,24 @@ struct TextureInstance
 	uint32_t index = 1;
 	uint32_t isBillboard = 1;
 	float	 uvScale = 1.0f;
+	uint32_t emitsLight = 0;
+	float	 _pad1 = 0.0f;
+};
+
+struct LightInstance
+{
+	glm::vec3 colorRGB;
+	float	  ambientStrength = 0.0f;
+	glm::vec3 pos;
+	float	  _pad1;
+};
+
+struct LightParams
+{
+	uint32_t numLights = 0;
 	float	 _pad0 = 0.0f;
 	float	 _pad1 = 0.0f;
+	float	 _pad2 = 0.0f;
 };
 
 struct LineInstance
@@ -86,6 +103,7 @@ static const std::string defaul_image_path = "Images/ball_default.png";
 
 static const uint32_t default_entity_capacity = 100000;
 static const uint32_t default_line_capacity = 100;
+static const uint32_t default_light_capacity = 100;
 
 void Mupfel::Renderer::Init(const Ping::Device& device, const Window& window)
 {
@@ -99,7 +117,7 @@ void Mupfel::Renderer::Init(const Ping::Device& device, const Window& window)
 		{{.set = uboSetIndex,
 		  .binding = 0,
 		  .type = Ping::DescriptorType::UniformBuffer,
-		  .stageFlags = Ping::ShaderStage::Vertex},
+		  .stageFlags = Ping::ShaderStage::Vertex | Ping::ShaderStage::Fragment},
 		 {.set = samplerSetIndex,
 		  .binding = 0,
 		  .type = Ping::DescriptorType::CombinedImageSampler,
@@ -108,7 +126,15 @@ void Mupfel::Renderer::Init(const Ping::Device& device, const Window& window)
 		 {.set = transformSetIndex,
 		  .binding = 0,
 		  .type = Ping::DescriptorType::StorageBuffer,
-		  .stageFlags = Ping::ShaderStage::Vertex}}};
+		  .stageFlags = Ping::ShaderStage::Vertex},
+		 {.set = lightSetIndex,
+		  .binding = 0,
+		  .type = Ping::DescriptorType::StorageBuffer,
+		  .stageFlags = Ping::ShaderStage::Fragment},
+		 {.set = lightParamSetIndex,
+		  .binding = 0,
+		  .type = Ping::DescriptorType::UniformBuffer,
+		  .stageFlags = Ping::ShaderStage::Fragment}}};
 	pipeline = device.CreatePipeline(pipeline_spec, swapchain.value());
 	commandBuffers = device.CreateCommandBuffers(Ping::QueueType::Graphics, frames_in_flight);
 	assert(commandBuffers.has_value() && commandBuffers.value().size() > 0);
@@ -142,6 +168,16 @@ void Mupfel::Renderer::Init(const Ping::Device& device, const Window& window)
 			sizeof(LineInstance) * default_line_capacity, Ping::BufferUsage::StorageBuffer,
 			Ping::MemoryProperty::HostVisible | Ping::MemoryProperty::HostCoherent |
 				Ping::MemoryProperty::DeviceLocal));
+
+		lightInstanceBuffers.emplace_back(device.CreateBuffer(
+			sizeof(LightInstance) * default_light_capacity, Ping::BufferUsage::StorageBuffer,
+			Ping::MemoryProperty::HostVisible | Ping::MemoryProperty::HostCoherent |
+				Ping::MemoryProperty::DeviceLocal));
+
+		lightParamBuffers.emplace_back(device.CreateBuffer(
+			sizeof(LightParams), Ping::BufferUsage::UniformBuffer,
+			Ping::MemoryProperty::HostVisible | Ping::MemoryProperty::HostCoherent |
+				Ping::MemoryProperty::DeviceLocal));
 	}
 	transformCapacity = default_entity_capacity;
 
@@ -154,6 +190,8 @@ void Mupfel::Renderer::Init(const Ping::Device& device, const Window& window)
 
 	/* Create descriptor sets */
 	descriptorSets = device.CreateDescriptorSets(pipeline.value(), uboSetIndex, uniformBuffers);
+
+	lightParamDescriptorSets = device.CreateDescriptorSets(pipeline.value(), lightParamSetIndex, lightParamBuffers);
 
 	gui = device.CreateGui(window.GetGLFWHandle(), swapchain.value(), frames_in_flight);
 
@@ -263,6 +301,9 @@ void Mupfel::Renderer::Init(const Ping::Device& device, const Window& window)
 		device.CreateStorageDescriptorSets(linePipeline.value(), lineInstanceSetIndex, lineInstanceBuffers);
 
 	lineInstanceCapacity = default_line_capacity;
+
+	lightDescriptorSets = device.CreateStorageDescriptorSets(pipeline.value(), lightSetIndex, lightInstanceBuffers);
+	lightCapacity = default_light_capacity;
 }
 
 void Mupfel::Renderer::EnsureTransformCapacity(const Ping::Device& device, uint32_t required_capacity)
@@ -297,6 +338,39 @@ void Mupfel::Renderer::EnsureTransformCapacity(const Ping::Device& device, uint3
 		device.CreateStorageDescriptorSets(pipeline.value(), transformSetIndex, textureInstanceBuffers);
 
 	transformCapacity = new_capacity;
+}
+
+void Mupfel::Renderer::EnsureLightCapacity(const Ping::Device& device, uint32_t required_capacity)
+{
+	if (required_capacity <= lightCapacity)
+	{
+		return;
+	}
+
+	uint32_t new_capacity = lightCapacity;
+	while (new_capacity < required_capacity)
+	{
+		new_capacity *= 2;
+	}
+
+	logger->info("Growing light buffers from {} to {} entities", lightCapacity, new_capacity);
+
+	/* Every frame-in-flight buffer is recreated together, so no in-flight submission may still be
+	 * reading the old buffers/descriptor sets we're about to destroy. */
+	device.WaitForCommands();
+
+	lightInstanceBuffers.clear();
+	for (uint32_t i = 0; i < frames_in_flight; i++)
+	{
+		lightInstanceBuffers.emplace_back(device.CreateBuffer(
+			sizeof(LightInstance) * new_capacity, Ping::BufferUsage::StorageBuffer,
+			Ping::MemoryProperty::HostVisible | Ping::MemoryProperty::HostCoherent |
+				Ping::MemoryProperty::DeviceLocal));
+	}
+
+	lightDescriptorSets = device.CreateStorageDescriptorSets(pipeline.value(), lightSetIndex, lightInstanceBuffers);
+
+	lightCapacity = new_capacity;
 }
 
 void Mupfel::Renderer::EnsureLineInstanceCapacity(const Ping::Device& device, uint32_t required_capacity)
@@ -352,7 +426,7 @@ void Mupfel::Renderer::SyncRenderableObjects(World& world, const Ping::Device& d
 
 	TextureInstance* buffer = static_cast<TextureInstance*>(textureInstanceBuffers[frame_index].GetMappedPtr());
 
-	for (auto [e, transform, texture] : world.registry.view<Mupfel::Transform, Mupfel::Texture>())
+	for (auto [e, texture, transform] : world.registry.view<Mupfel::Texture, Mupfel::Transform>())
 	{
 		buffer[buffer_index].index = texture.index;
 		buffer[buffer_index].pos_x = transform.pos_x;
@@ -364,10 +438,44 @@ void Mupfel::Renderer::SyncRenderableObjects(World& world, const Ping::Device& d
 		buffer[buffer_index].scale_y = transform.scale_y;
 		buffer[buffer_index].isBillboard = transform.billboard ? 1u : 0u;
 		buffer[buffer_index].uvScale = transform.uvScale;
+
+		/* TODO: check if GetSignature might be more performant! */
+		if (world.registry.HasComponent<Mupfel::Light>(e))
+		{
+			buffer[buffer_index].emitsLight = 1;
+		}
+
 		buffer_index++;
 	}
 
 	drawable_entities = buffer_index;
+}
+
+void Mupfel::Renderer::SyncLights(World& world, const Ping::Device& device, uint32_t frame_index)
+{
+	uint32_t buffer_index = 0;
+
+	LightInstance* buffer = static_cast<LightInstance*>(lightInstanceBuffers[frame_index].GetMappedPtr());
+
+	for (auto [e, light, transform] : world.registry.view<Mupfel::Light, Mupfel::Transform>())
+	{
+		EnsureLightCapacity(device, buffer_index);
+
+		/* Populate the LightInstance object for the fragment shader */
+		buffer[buffer_index].ambientStrength = light.ambientStrength;
+		buffer[buffer_index].colorRGB.r = light.r;
+		buffer[buffer_index].colorRGB.g = light.g;
+		buffer[buffer_index].colorRGB.b = light.b;
+		buffer[buffer_index].pos.x = transform.pos_x;
+		buffer[buffer_index].pos.y = transform.pos_y;
+		buffer[buffer_index].pos.z = transform.pos_z;
+
+		buffer_index++;
+	}
+
+	LightParams params{};
+	params.numLights = buffer_index;
+	std::memcpy(lightParamBuffers[frame_index].GetMappedPtr(), &params, sizeof(LightParams));
 }
 
 void Mupfel::Renderer::DrawLineSpawnerUI(World& world)
@@ -581,6 +689,19 @@ void Mupfel::Renderer::DrawEntityCreatorUI(World& world, const Ping::Device& dev
 	ImGui::End();
 }
 
+void Mupfel::Renderer::DrawCameraControlsUI()
+{
+	ImGui::Begin("Camera");
+	// SliderAngle stores radians but displays/edits in degrees, matching the radian members directly.
+	ImGui::SliderAngle("Yaw", &cameraYaw, -180.0f, 180.0f);
+	// Bound pitch short of +/-90 deg: at the poles the eye lines up with lookAt's up axis and the view
+	// matrix becomes degenerate.
+	ImGui::SliderAngle("Pitch", &cameraPitch, -89.0f, 89.0f);
+	// Range mirrors the scroll-to-zoom clamp in UpdateCamera so the slider and the wheel stay consistent.
+	ImGui::SliderFloat("Distance", &cameraDistance, 5.0f, 60.0f);
+	ImGui::End();
+}
+
 void Mupfel::Renderer::updateMVP(Ping::Buffer& uniform_buffer)
 {
 	auto [width, height] = swapchain.value().GetExtent();
@@ -596,6 +717,7 @@ void Mupfel::Renderer::updateMVP(Ping::Buffer& uniform_buffer)
 		glm::perspective(glm::radians(45.0f), static_cast<float>(width) / static_cast<float>(height), 0.1f, 500.0f);
 	ubo.proj[1][1] *= -1;
 	ubo.cameraRight = glm::vec4(-glm::sin(cameraYaw), glm::cos(cameraYaw), 0.0f, 0.0f);
+	ubo.cameraPos = glm::vec4(eye, 1.0f);
 	std::memcpy(uniform_buffer.GetMappedPtr(), &ubo, sizeof(UniformBufferObject));
 }
 
@@ -651,6 +773,7 @@ void Mupfel::Renderer::RenderNextFrame(World& world, const Ping::Device& device,
 
 	SyncRenderableObjects(world, device, frameIndex);
 	SyncRenderableLines(world, device, frameIndex);
+	SyncLights(world, device, frameIndex);
 
 	uint32_t image_index = swapchain.value().AcquireNextImage(frameIndex);
 
@@ -677,6 +800,7 @@ void Mupfel::Renderer::RenderNextFrame(World& world, const Ping::Device& device,
 
 	DrawLineSpawnerUI(world);
 	DrawEntityCreatorUI(world, device);
+	DrawCameraControlsUI();
 
 	current_command_buffer.Begin(device, Ping::CommandBufferUsage::None);
 
@@ -706,6 +830,8 @@ void Mupfel::Renderer::RenderNextFrame(World& world, const Ping::Device& device,
 	current_command_buffer.BindPipeline(pipeline.value());
 
 	current_command_buffer.BindDescriptorSet(pipeline.value(), descriptorSets.value(), frameIndex, uboSetIndex);
+	current_command_buffer.BindDescriptorSet(
+		pipeline.value(), lightParamDescriptorSets.value(), frameIndex, lightParamSetIndex);
 
 	if (samplerDescriptorSets.has_value())
 	{
@@ -714,6 +840,8 @@ void Mupfel::Renderer::RenderNextFrame(World& world, const Ping::Device& device,
 
 	current_command_buffer.BindDescriptorSet(
 		pipeline.value(), transformDescriptorSets.value(), frameIndex, transformSetIndex);
+
+	current_command_buffer.BindDescriptorSet(pipeline.value(), lightDescriptorSets.value(), frameIndex, lightSetIndex);
 
 	current_command_buffer.BindVertexBuffer(vertex_buffers[frameIndex], 0);
 

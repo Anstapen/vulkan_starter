@@ -21,7 +21,7 @@ struct alignas(16) Movement
 	 * @brief Linear velocity along the X axis.
 	 *
 	 * The Movement System adds this velocity (scaled by timestep)
-	 * to the entity’s Transform position every update.
+	 * to the entity's Transform position every update.
 	 */
 	float velocity_x = 0.0f;
 

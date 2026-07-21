@@ -63,6 +63,9 @@ void Mupfel::Application::MainLoop()
 		/* Update the entity positions */
 		UpdateMovement(delta_time);
 
+		/* Circle the light source(s) on the x/y plane */
+		world.UpdateLights(delta_time);
+
 		/* Sync from World to GPU buffers will be done in the Renderer */
 
 		renderer.RenderNextFrame(world, device.value(), window.value(), delta_time);
