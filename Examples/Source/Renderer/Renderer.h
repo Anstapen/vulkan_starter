@@ -12,7 +12,6 @@
 #include "Ping/Buffer.h"
 #include "Ping/DescriptorSets.h"
 #include "Ping/Device.h"
-#include "Ping/Error.h"
 #include "Ping/Gui.h"
 #include "Ping/Image.h"
 #include "Ping/Sampler.h"
@@ -51,8 +50,9 @@ public:
 	 */
 	void RenderNextFrame(World& world, const Ping::Device& device, const Window& window, float delta_time);
 
-	/** Currently a no-op; resource cleanup happens via RAII on destruction. */
 	void Shutdown();
+
+	void SetImageBuffer(const Ping::Device& device, std::vector<Ping::Image>& image_buffer);
 
 private:
 	/** Advances `frameIndex` to the next frame-in-flight slot, wrapping at `frames_in_flight`. */
@@ -93,30 +93,13 @@ private:
 	/** Draws the "Line Spawner" ImGui window and handles its Add/Clear buttons. */
 	void DrawLineSpawnerUI(World& world);
 
-	/** Draws the "Entity Creator" ImGui window and handles its Create Entity button. */
-	void DrawEntityCreatorUI(World& world, const Ping::Device& device);
-
 	/** Draws the "Camera" ImGui window with sliders for the follow camera's yaw, pitch, and distance. */
 	void DrawCameraControlsUI();
-
-	/** Draws the texture file-browser popup opened from `DrawEntityCreatorUI`, loading the picked file via
-	 * `LoadTexture`. */
-	void DrawTextureFileBrowserPopup(const Ping::Device& device);
-
-	/**
-	 * Returns the index into `images`/`imagePaths` for `path`, loading it (and rebuilding
-	 * `samplerDescriptorSets`) if it isn't already loaded.
-	 *
-	 * @return `std::nullopt` if `path` fails to load or the texture array is already at `max_textures` capacity.
-	 * @note Calls `device.WaitForCommands()` before replacing `samplerDescriptorSets`, since its bindings are
-	 * only ever written at creation time and the old set must not still be in flight when it's destroyed.
-	 */
-	std::optional<uint32_t> LoadTexture(const Ping::Device& device, const std::string& path);
 
 private:
 	/** Number of frames pipelined in parallel. */
 	static constexpr uint32_t frames_in_flight = 2;
-	static constexpr uint32_t max_textures = 256;
+	static constexpr uint32_t max_textures = 4096;
 	/** Current frame-in-flight slot, in `[0, frames_in_flight)`. */
 	uint32_t frameIndex = 0;
 	/** Logger created in `Init`. */
@@ -145,12 +128,9 @@ private:
 	/** Descriptor sets */
 	std::optional<Ping::DescriptorSets> descriptorSets;
 
-	std::vector<Ping::Image>			images;
 	std::optional<Ping::Image>			depthBuffer;
 	std::vector<Ping::Sampler>			samplers;
 	std::optional<Ping::DescriptorSets> samplerDescriptorSets;
-	/** Source path for each entry in `images`, same indices; used by the texture picker and to de-dupe reloads. */
-	std::vector<std::string> imagePaths;
 
 	std::optional<Ping::DescriptorSets> transformDescriptorSets;
 	std::optional<Ping::DescriptorSets> lightDescriptorSets;
@@ -195,16 +175,6 @@ private:
 	std::optional<Ping::DescriptorSets> lineInstanceDescriptorSets;
 
 	uint32_t drawable_lines = 0;
-
-	/** "Entity Creator" ImGui window state; see DrawEntityCreatorUI. */
-	bool				  creatorAddTransform = false;
-	Transform			  creatorTransform{};
-	bool				  creatorAddMovement = false;
-	Movement			  creatorMovement{};
-	bool				  creatorAddTexture = false;
-	uint32_t			  selectedTextureIndex = 0;
-	std::string			  selectedTexturePath;
-	std::filesystem::path currentBrowseDir = "Images";
 };
 
 } // namespace Mupfel

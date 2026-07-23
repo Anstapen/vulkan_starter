@@ -1,7 +1,7 @@
 #pragma once
 #include <expected>
 
-namespace Ping
+namespace Mupfel
 {
 
 enum class Error

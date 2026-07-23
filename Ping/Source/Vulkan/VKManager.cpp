@@ -583,14 +583,16 @@ VulkanImage Backend::VKManager::CreateImage(
 	vk::ImageTiling			tiling,
 	vk::ImageUsageFlags		usage,
 	vk::ImageAspectFlags	aspect,
-	vk::MemoryPropertyFlags properties)
+	vk::MemoryPropertyFlags properties,
+	uint32_t				layers,
+	bool					image_array)
 {
 	vk::ImageCreateInfo imageInfo{
 		.imageType = vk::ImageType::e2D,
 		.format = format,
 		.extent = {width, height, 1},
 		.mipLevels = 1,
-		.arrayLayers = 1,
+		.arrayLayers = layers,
 		.samples = vk::SampleCountFlagBits::e1,
 		.tiling = tiling,
 		.usage = usage,
@@ -607,10 +609,10 @@ VulkanImage Backend::VKManager::CreateImage(
 
 	vk::ImageViewCreateInfo viewInfo{
 		.image = image,
-		.viewType = vk::ImageViewType::e2D,
+		.viewType = image_array ? vk::ImageViewType::e2DArray : vk::ImageViewType::e2D,
 		.format = format,
 		.subresourceRange = {
-			.aspectMask = aspect, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1}};
+			.aspectMask = aspect, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = layers}};
 	auto image_view = vk::raii::ImageView(context.device, viewInfo);
 
 	return VulkanImage{std::move(image), std::move(image_view), std::move(imageMemory), usage,
@@ -1178,7 +1180,7 @@ Backend::VKManager::LoadVulkanImage(const VulkanContext& context, const std::str
 		VKManager::CreateImage(
 			context, texWidth, texHeight, vk::Format::eR8G8B8A8Srgb, vk::ImageTiling::eOptimal,
 			vk::ImageUsageFlagBits::eTransferDst | usage, vk::ImageAspectFlagBits::eColor,
-			vk::MemoryPropertyFlagBits::eDeviceLocal));
+			vk::MemoryPropertyFlagBits::eDeviceLocal, 1, true));
 
 	/* Image has now device-local memory assigned to it, but it does not contain the image data yet */
 

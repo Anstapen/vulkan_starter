@@ -206,66 +206,11 @@ void Mupfel::Renderer::Init(const Ping::Device& device, const Window& window)
 
 	std::optional<Ping::Image> blue_ball = device.CreateImage("Images/ball_blue.png", Ping::ImageUsage::Sampled);
 
-	if (!blue_ball.has_value())
-	{
-		logger->warn("Unable to load {}.", "Images/ball_blue.png");
-		return;
-	}
-
-	std::optional<Ping::Image> green_ball = device.CreateImage("Images/ball_green.png", Ping::ImageUsage::Sampled);
-
-	if (!green_ball.has_value())
-	{
-		logger->warn("Unable to load {}.", "Images/ball_green.png");
-		return;
-	}
-
-	std::optional<Ping::Image> red_ball = device.CreateImage("Images/ball_red.png", Ping::ImageUsage::Sampled);
-
-	if (!red_ball.has_value())
-	{
-		logger->warn("Unable to load {}.", "Images/ball_red.png");
-		return;
-	}
-
-	std::optional<Ping::Image> yellow_ball = device.CreateImage("Images/ball_yellow.png", Ping::ImageUsage::Sampled);
-
-	if (!yellow_ball.has_value())
-	{
-		logger->warn("Unable to load {}.", "Images/ball_yellow.png");
-		return;
-	}
-
-	std::optional<Ping::Image> grass = device.CreateImage("Images/grass_1.png", Ping::ImageUsage::Sampled);
-
-	if (!grass.has_value())
-	{
-		logger->warn("Unable to load {}.", "Images/grass_1.png");
-		return;
-	}
-
-	images.push_back(std::move(default_image.value()));
-	images.push_back(std::move(blue_ball.value()));
-	images.push_back(std::move(green_ball.value()));
-	images.push_back(std::move(red_ball.value()));
-	images.push_back(std::move(yellow_ball.value()));
-	images.push_back(std::move(grass.value()));
-	imagePaths.push_back(defaul_image_path);
-	imagePaths.push_back("Images/ball_blue.png");
-	imagePaths.push_back("Images/ball_green.png");
-	imagePaths.push_back("Images/ball_red.png");
-	imagePaths.push_back("Images/ball_yellow.png");
-	imagePaths.push_back("Images/grass_1.png");
 	samplers.push_back(device.CreateSampler(
 		{.filterMode = Ping::SamplerFilterMode::Linear,
 		 .mipmapMode = Ping::SamplerMipMapMode::Linear,
 		 .addressMode = Ping::SamplerAddressMode::Repeat,
 		 .anisotropyEnable = true}));
-
-	std::vector<std::reference_wrapper<const Ping::Sampler>> sampler_refs(images.size(), samplers.front());
-
-	samplerDescriptorSets = device.CreateTextureArrayDescriptorSet(
-		pipeline.value(), samplerSetIndex, max_textures, images, sampler_refs, images.front(), samplers.front());
 
 	transformDescriptorSets =
 		device.CreateStorageDescriptorSets(pipeline.value(), transformSetIndex, textureInstanceBuffers);
@@ -542,152 +487,6 @@ void Mupfel::Renderer::DrawLineSpawnerUI(World& world)
 	ImGui::End();
 }
 
-std::optional<uint32_t> Mupfel::Renderer::LoadTexture(const Ping::Device& device, const std::string& path)
-{
-	for (size_t i = 0; i < imagePaths.size(); i++)
-	{
-		if (imagePaths[i] == path)
-		{
-			return static_cast<uint32_t>(i);
-		}
-	}
-
-	if (images.size() >= max_textures)
-	{
-		logger->warn("Cannot load {}: texture array is full ({} entries)", path, max_textures);
-		return std::nullopt;
-	}
-
-	std::optional<Ping::Image> image = device.CreateImage(path, Ping::ImageUsage::Sampled);
-	if (!image.has_value())
-	{
-		logger->warn("Unable to load {}.", path);
-		return std::nullopt;
-	}
-
-	/* samplerDescriptorSets is about to be destroyed and replaced; its bindings were only ever
-	 * written once, at creation time, so no in-flight command buffer may still reference it. */
-	device.WaitForCommands();
-
-	images.push_back(std::move(image.value()));
-	imagePaths.push_back(path);
-
-	std::vector<std::reference_wrapper<const Ping::Sampler>> sampler_refs(images.size(), samplers.front());
-	samplerDescriptorSets = device.CreateTextureArrayDescriptorSet(
-		pipeline.value(), samplerSetIndex, max_textures, images, sampler_refs, images.front(), samplers.front());
-
-	return static_cast<uint32_t>(images.size() - 1);
-}
-
-void Mupfel::Renderer::DrawTextureFileBrowserPopup(const Ping::Device& device)
-{
-	if (!ImGui::BeginPopupModal("TextureFileBrowser"))
-	{
-		return;
-	}
-
-	ImGui::Text("%s", currentBrowseDir.string().c_str());
-	ImGui::SameLine();
-	if (ImGui::Button("Up") && currentBrowseDir.has_parent_path())
-	{
-		currentBrowseDir = currentBrowseDir.parent_path();
-	}
-
-	ImGui::BeginChild("FileList", ImVec2(400, 300), true);
-	for (const auto& entry : std::filesystem::directory_iterator(currentBrowseDir))
-	{
-		std::string name = entry.path().filename().string();
-		if (entry.is_directory())
-		{
-			if (ImGui::Selectable((name + "/").c_str()))
-			{
-				currentBrowseDir = entry.path();
-			}
-		}
-		else if (entry.path().extension() == ".png")
-		{
-			if (ImGui::Selectable(name.c_str()))
-			{
-				std::optional<uint32_t> index = LoadTexture(device, entry.path().string());
-				if (index.has_value())
-				{
-					selectedTextureIndex = index.value();
-					selectedTexturePath = entry.path().string();
-				}
-				ImGui::CloseCurrentPopup();
-			}
-		}
-	}
-	ImGui::EndChild();
-
-	if (ImGui::Button("Cancel"))
-	{
-		ImGui::CloseCurrentPopup();
-	}
-
-	ImGui::EndPopup();
-}
-
-void Mupfel::Renderer::DrawEntityCreatorUI(World& world, const Ping::Device& device)
-{
-	ImGui::Begin("Entity Creator");
-
-	ImGui::Checkbox("Transform", &creatorAddTransform);
-	if (creatorAddTransform)
-	{
-		ImGui::Indent();
-		ImGui::DragFloat3("Position", &creatorTransform.pos_x, 0.1f);
-		ImGui::DragFloat2("Scale", &creatorTransform.scale_x, 0.05f, 0.01f, 100.0f);
-		ImGui::SliderAngle("Rotation (yaw)", &creatorTransform.rotation);
-		ImGui::SliderAngle("Tilt", &creatorTransform.tilt);
-		ImGui::Unindent();
-	}
-
-	ImGui::Checkbox("Movement", &creatorAddMovement);
-	if (creatorAddMovement)
-	{
-		ImGui::Indent();
-		ImGui::DragFloat3("Velocity", &creatorMovement.velocity_x, 0.1f);
-		ImGui::DragFloat("Angular Velocity", &creatorMovement.angular_velocity, 0.05f);
-		ImGui::DragFloat("Initial Acceleration", &creatorMovement.initial_acceleration, 0.05f);
-		ImGui::DragFloat("Acceleration Decay", &creatorMovement.acceleration_decay, 0.01f, 0.0f, 1.0f);
-		ImGui::DragFloat("Friction", &creatorMovement.friction, 0.01f, 0.0f, 1.0f);
-		ImGui::Unindent();
-	}
-
-	ImGui::Checkbox("Texture", &creatorAddTexture);
-	if (creatorAddTexture)
-	{
-		ImGui::Indent();
-		ImGui::Text("Selected: %s", selectedTexturePath.empty() ? "(none)" : selectedTexturePath.c_str());
-		if (ImGui::Button("Browse..."))
-		{
-			currentBrowseDir = "Images";
-			ImGui::OpenPopup("TextureFileBrowser");
-		}
-		DrawTextureFileBrowserPopup(device);
-		ImGui::Unindent();
-	}
-
-	if (ImGui::Button("Create Entity"))
-	{
-		Entity e = world.registry.CreateEntity();
-		if (creatorAddTransform)
-		{
-			world.registry.AddComponent<Transform>(e, creatorTransform);
-		}
-		if (creatorAddMovement)
-		{
-			world.registry.AddComponent<Movement>(e, creatorMovement);
-		}
-		if (creatorAddTexture)
-		{
-			world.registry.AddComponent<Texture>(e, Texture{selectedTextureIndex});
-		}
-	}
-
-	ImGui::End();
-}
 
 void Mupfel::Renderer::DrawCameraControlsUI()
 {
@@ -799,7 +598,6 @@ void Mupfel::Renderer::RenderNextFrame(World& world, const Ping::Device& device,
 	ImGui::End();
 
 	DrawLineSpawnerUI(world);
-	DrawEntityCreatorUI(world, device);
 	DrawCameraControlsUI();
 
 	current_command_buffer.Begin(device, Ping::CommandBufferUsage::None);
@@ -891,5 +689,14 @@ void Mupfel::Renderer::RenderNextFrame(World& world, const Ping::Device& device,
 }
 
 void Mupfel::Renderer::Shutdown() {}
+
+void Mupfel::Renderer::SetImageBuffer(const Ping::Device& device, std::vector<Ping::Image>& image_buffer)
+{
+	std::vector<std::reference_wrapper<const Ping::Sampler>> sampler_refs(image_buffer.size(), samplers.front());
+
+	samplerDescriptorSets = device.CreateTextureArrayDescriptorSet(
+		pipeline.value(), samplerSetIndex, max_textures, image_buffer, sampler_refs, image_buffer.front(),
+		samplers.front());
+}
 
 void Mupfel::Renderer::incrementFrameIndex() { frameIndex = (frameIndex + 1) % frames_in_flight; }

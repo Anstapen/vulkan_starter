@@ -80,9 +80,9 @@ VSOutput vertMain(VSInput input) {
     return output;
 }
 
-static const uint kMaxTextures = 256;
+static const uint kMaxTextures = 4096;
 [[vk::binding(0, 1)]]
-Sampler2D textures[kMaxTextures];
+Sampler2DArray textures[kMaxTextures];
 
 struct LightInstance {
     float3 color;
@@ -108,10 +108,10 @@ float4 fragMain(VSOutput vertIn) : SV_TARGET {
     if(vertIn.emitsLight != 0)
     {
         // the fragment is part of a geometry that emits light, skip light calculations
-        return textures[NonUniformResourceIndex(vertIn.textureIndex)].Sample(vertIn.fragTexCoord);
+        return textures[NonUniformResourceIndex(vertIn.textureIndex)].Sample(float3(vertIn.fragTexCoord, 0));
     } else
     {
-        float4 tex_color = textures[NonUniformResourceIndex(vertIn.textureIndex)].Sample(vertIn.fragTexCoord);
+        float4 tex_color = textures[NonUniformResourceIndex(vertIn.textureIndex)].Sample(float3(vertIn.fragTexCoord, 0));
         var ambient = float3(0.0f);
         var diffuse = float3(0.0f);
         var specular = float3(0.0f);

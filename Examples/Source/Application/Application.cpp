@@ -45,7 +45,7 @@ void Mupfel::Application::Init()
 	device = Ping::Device(Ping::DeviceSpecification(), window.value().GetGLFWHandle());
 	renderer.Init(device.value(), window.value());
 
-	world.SpawnScene();
+	world.SpawnScene(renderer, device.value(), image_manager);
 }
 
 void Mupfel::Application::MainLoop()

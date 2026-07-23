@@ -1,6 +1,7 @@
 #pragma once
 #include "Logger/Logger.h"
 #include "Renderer/Renderer.h"
+#include "TextureManager/ImageManager.h"
 #include "Window/Window.h"
 #include <chrono>
 #include <cstdint>
@@ -14,12 +15,14 @@
 
 namespace Mupfel
 {
+
 /**
  * Top-level entry point for a Mupfel-based app: owns the `Window`, `Ping::Device`, `Renderer`, and
  * `World`, and drives the `Init()` / `MainLoop()` lifecycle.
  */
 class Application
 {
+
 public:
 	/** Constructs an application named `in_name`. Call `Run()` to actually initialize and start it. */
 	Application(const std::string& in_name);
@@ -52,6 +55,7 @@ private:
 	std::optional<Window> window;
 	/** Owns the swapchain/pipeline/command buffers for rendering. */
 	Renderer renderer;
+	ImageManager image_manager;
 	/** ECS registry and event system for this application. */
 	World world;
 	/** Incremented once per `MainLoop()` iteration. */

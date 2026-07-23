@@ -2,7 +2,6 @@
 #include "Buffer.h"
 #include "CommandBuffer.h"
 #include "DescriptorSets.h"
-#include "Error.h"
 #include "Gui.h"
 #include "Image.h"
 #include "Pipeline.h"

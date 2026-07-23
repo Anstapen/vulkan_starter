@@ -138,7 +138,9 @@ public:
 		vk::ImageTiling			tiling,
 		vk::ImageUsageFlags		usage,
 		vk::ImageAspectFlags	aspect,
-		vk::MemoryPropertyFlags properties);
+		vk::MemoryPropertyFlags properties,
+		uint32_t				layers = 1,
+		bool					image_array = false);
 
 	/**
 	 * Creates a sampler describing how images are sampled by shaders.

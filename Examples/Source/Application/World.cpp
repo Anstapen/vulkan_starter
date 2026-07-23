@@ -27,10 +27,7 @@ void Mupfel::World::SpawnRandomEntities(uint32_t count, float min_pos, float max
 		t.scale_x = 0.5f;
 		t.scale_y = 0.5f;
 		registry.AddComponent<Transform>(e, t);
-
-		Texture tex;
-		tex.index = static_cast<uint32_t>(texture_dist(rng));
-		registry.AddComponent<Texture>(e, tex);
+		
 
 		Movement m;
 		m.velocity_x = velocity_dist(rng);
@@ -39,12 +36,9 @@ void Mupfel::World::SpawnRandomEntities(uint32_t count, float min_pos, float max
 	}
 }
 
-void Mupfel::World::SpawnScene()
+void Mupfel::World::SpawnScene(Renderer& renderer, Ping::Device& device, ImageManager& manager)
 {
-	// Texture indices match Renderer::Init's image load order (0 default, 1-4 balls, 5 grass_1.png).
-	constexpr uint32_t kGrass = 5;
-	constexpr uint32_t kPlayerTex = 3;
-
+	LoadImages(renderer, device, manager);
 	// Ground: one large flat quad in the x/y plane, grass tiled ~1 texture per world unit.
 	{
 		Entity	  e = registry.CreateEntity();
@@ -54,7 +48,13 @@ void Mupfel::World::SpawnScene()
 		g.billboard = false;
 		g.uvScale = 300.0f;
 		registry.AddComponent<Transform>(e, g);
-		registry.AddComponent<Texture>(e, Texture{kGrass});
+
+		if (image_map.contains("DefaultGrass"))
+		{
+			Texture tex;
+			tex.index = image_map["DefaultGrass"];
+			registry.AddComponent<Texture>(e, tex);
+		}
 	}
 
 	// Player: an upright billboard at the origin; the camera follows this entity.
@@ -64,7 +64,12 @@ void Mupfel::World::SpawnScene()
 		p.scale_x = 1.5f;
 		p.scale_y = 2.0f;
 		registry.AddComponent<Transform>(e, p);
-		registry.AddComponent<Texture>(e, Texture{kPlayerTex});
+		if (image_map.contains("DefaultBall"))
+		{
+			Texture tex;
+			tex.index = image_map["DefaultBall"];
+			registry.AddComponent<Texture>(e, tex);
+		}
 		player = e;
 	}
 
@@ -80,7 +85,7 @@ void Mupfel::World::SpawnScene()
 		if (i == 3)
 		{
 			Light l;
-			l.ambientStrength = 0.1;
+			l.ambientStrength = 0.1f;
 			l.r = 1.0f;
 			l.g = 1.0f;
 			l.b = 1.0f;
@@ -88,7 +93,13 @@ void Mupfel::World::SpawnScene()
 		}
 
 		registry.AddComponent<Transform>(e, t);
-		registry.AddComponent<Texture>(e, Texture{1u + static_cast<uint32_t>(i % 4)});
+
+		if (image_map.contains("RedBall"))
+		{
+			Texture tex;
+			tex.index = image_map["RedBall"];
+			registry.AddComponent<Texture>(e, tex);
+		}
 	}
 }
 
@@ -109,4 +120,19 @@ void Mupfel::World::UpdateLights(float delta_time)
 		transform.pos_y = std::sin(lightOrbitAngle) * orbitRadius;
 		transform.pos_z = orbitHeight;
 	}
+}
+
+void Mupfel::World::LoadImages(Renderer& renderer, Ping::Device& device, ImageManager& manager)
+{
+	auto result = manager.Load(renderer, device, "Images/grass_1.png")
+					  .transform([this](ImageHandle handle) { this->image_map["DefaultGrass"] = handle; });
+
+	 result = manager.Load(renderer, device, "Images/ball_blue.png")
+					  .transform([this](ImageHandle handle) { this->image_map["BlueBall"] = handle; });
+	 result = manager.Load(renderer, device, "Images/ball_green.png")
+					  .transform([this](ImageHandle handle) { this->image_map["GreenBall"] = handle; });
+	 result = manager.Load(renderer, device, "Images/ball_default.png")
+					  .transform([this](ImageHandle handle) { this->image_map["DefaultBall"] = handle; });
+	 result = manager.Load(renderer, device, "Images/ball_red.png")
+					  .transform([this](ImageHandle handle) { this->image_map["RedBall"] = handle; });
 }
